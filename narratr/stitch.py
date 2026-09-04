@@ -24,6 +24,39 @@ def _ffmpeg(args: list[str], what: str) -> None:
 		raise StitchError(f"{what} failed:\n  " + "\n  ".join(tail))
 
 
+def mux_args(video: Path, audio: Path, out: Path) -> list[str]:
+	"""Combine a rendered scene with its narration.
+
+	The explicit -map is load-bearing. Remotion writes its own silent AAC track
+	into every scene, at a higher bitrate than our narration wav, so ffmpeg's
+	default stream selection picks *that* as the "best" audio and the result is
+	silent with no warning. Name both streams rather than letting ffmpeg guess.
+
+	Video is copied; only audio is encoded. -shortest trims the frame-rounded
+	video back to the audio, which is the master clock.
+	"""
+	return [
+		"-i",
+		str(video),
+		"-i",
+		str(audio),
+		"-map",
+		"0:v:0",
+		"-map",
+		"1:a:0",
+		"-c:v",
+		"copy",
+		"-c:a",
+		"aac",
+		"-b:a",
+		"192k",
+		"-shortest",
+		"-movflags",
+		"+faststart",
+		str(out),
+	]
+
+
 def probe_duration(path: Path) -> float:
 	out = subprocess.run(
 		["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
@@ -59,25 +92,12 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 
 		if not out.exists():
 			tmp = out.with_name(f".{out.name}.partial.mp4")
-			# Video is copied; only the audio is encoded. -shortest trims the
-			# frame-rounded video back to the audio, which is the master clock.
 			_ffmpeg(
-				[
-					"-i",
-					str(run_dir / "video" / entry["video"]),
-					"-i",
-					str(run_dir / "audio" / entry["audio"]),
-					"-c:v",
-					"copy",
-					"-c:a",
-					"aac",
-					"-b:a",
-					"192k",
-					"-shortest",
-					"-movflags",
-					"+faststart",
-					str(tmp),
-				],
+				mux_args(
+					run_dir / "video" / entry["video"],
+					run_dir / "audio" / entry["audio"],
+					tmp,
+				),
 				f"mux {scene['id']}",
 			)
 			tmp.rename(out)
