@@ -20,7 +20,7 @@ A Claude skill plus a local CLI. Claude reads a document and writes the script; 
 |---|---|---|
 | **Script + scene planning** | Claude, in-session, via the narratr skill | Build as a skill |
 | **Narration** | Chatterbox Turbo, local | Build on OSS |
-| **Word timings** | WhisperX forced alignment, local | Build on OSS |
+| **Word timings** | torchaudio forced alignment, local | Build on OSS |
 | **Slides + diagram animation** | Remotion (React → video) | Build on OSS |
 | **Diagram source** | Mermaid, rendered to SVG, revealed step-by-step | Build (~150 LOC) |
 | **Assembly** | FFmpeg concat demuxer | Buy (OSS) |
@@ -143,7 +143,11 @@ M4 Pro / 24 GB, real runs:
 
 ### Captions
 
-WhisperX forced alignment over the generated audio. Local, free, word-level, and indifferent to which TTS produced the audio.
+Forced alignment, not transcription. The text is known exactly — it is what we asked Chatterbox to say — so `torchaudio`'s CTC aligner and the MMS_FA bundle line the words up against the audio directly.
+
+That replaced WhisperX, which would have brought faster-whisper and CTranslate2 to transcribe speech we already have the script for. torchaudio was already a dependency. Measured at **rtf 0.03** — 73 seconds of audio aligned in 2 seconds, essentially free.
+
+`torchaudio::forced_align` has no MPS kernel, so the emission is moved to CPU explicitly for that one call rather than setting `PYTORCH_ENABLE_MPS_FALLBACK`, which would silently send any unimplemented op to the CPU and hide the cost.
 
 ---
 
@@ -234,7 +238,7 @@ caffeinate -is uv run narratr render scenes.json
 |---|---|---|
 | **Script engine** | **Build** as a skill | Nothing off-the-shelf does coverage-guaranteed chunking. Running it in-session removes the auth and reproducibility problems a subprocess would add. |
 | **TTS** | **Build** — Chatterbox Turbo | Quality cleared the bar on a real listen; MIT; zero marginal cost. Benchmarked above. |
-| **Alignment** | **Build** — WhisperX | Decouples captions from any TTS vendor. |
+| **Alignment** | **Build** — torchaudio | Already a dependency; forced alignment beats transcribing text we already have. |
 | **Slides** | **Build** on Remotion — ~~MARP~~ | MARP outputs *static* artifacts. Animating them means exporting frames and panning, which kills per-element reveals. |
 | **Diagram animation** | **Build** — ~~FlowGif~~ | Closed SaaS, GIF/PNG export. A GIF cannot be timed against narration. |
 | **Assembly** | **Buy** — FFmpeg | `concat` demuxer with stream copy. Milliseconds, no re-encode. |
@@ -255,7 +259,7 @@ caffeinate -is uv run narratr render scenes.json
 |---|---|---|
 | Script | minutes | In-session, conversational |
 | **Narration** | **~80 min** | Measured, sustained rtf 1.33 |
-| Alignment | ~10 min | Estimate, unmeasured |
+| Alignment | seconds | Measured, rtf 0.03 |
 | Render | 30–60 min | Estimate, unmeasured |
 | Stitch | seconds | Stream copy |
 | **Total** | **~2 h** | |
@@ -286,7 +290,7 @@ Only narration is measured. Benchmark the render on day one with `npx remotion b
 | Block extraction | working, mechanical |
 | Narration | **working**, benchmarked, resumable |
 | Detached runs | **working**, verified surviving the parent process |
-| Alignment | not built |
+| Alignment | working, word timings + SRT |
 | Scene render | not built |
 | Stitch | not built |
 

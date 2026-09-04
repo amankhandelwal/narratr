@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from narratr.device import release_cache, select
 from narratr.paths import ROOT
 from narratr.state import Manifest
 
@@ -33,26 +34,6 @@ def _resolve_voice(spec: dict[str, Any]) -> Path:
 	return path
 
 
-def _release_cache(device: str) -> None:
-	"""Hand freed MPS blocks back to the system between scenes.
-
-	The MPS caching allocator keeps blocks it has finished with. Measured on a
-	24 GB M4 Pro, that grew the driver reservation to 14.6 GB while only 2.9 GB
-	was live. Combined with the rest of the desktop that over-commits memory,
-	and every later scene thrashes: ~1M page-ins and page-outs per generation,
-	pushing rtf from ~1.0 to 4-6.
-
-	Releasing the cache each scene holds the reservation near 3.6 GB and keeps
-	rtf flat. Costs a negligible amount of re-allocation.
-	"""
-	if device != "mps":
-		return
-	# Imported here to match run(): `narratr doctor` should not pay for torch.
-	import torch
-
-	torch.mps.empty_cache()
-
-
 def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	"""TTS, one clip per scene, resumable."""
 	todo = manifest.pending("audio")
@@ -71,7 +52,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	audio_dir = run_dir / "audio"
 	audio_dir.mkdir(exist_ok=True)
 
-	device = "mps" if torch.backends.mps.is_available() else "cpu"
+	device = select()
 	print(f"narrate: {len(todo)} scene(s) on {device}")
 
 	# One process, many scenes. The model costs ~75s to load, so never spawn
@@ -107,7 +88,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 		torchaudio.save(str(tmp), wav, model.sr)
 		tmp.rename(out)
 		manifest.mark(scene_id, "audio", out.name)
-		_release_cache(device)
+		release_cache(device)
 
 		spoken += seconds
 		elapsed += took

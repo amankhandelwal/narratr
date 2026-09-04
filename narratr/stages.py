@@ -12,13 +12,6 @@ from typing import Any
 from narratr.state import Manifest
 
 
-def align(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
-	raise NotImplementedError(
-		"align: not built yet. Planned: WhisperX forced alignment over "
-		"runs/<id>/audio/*.wav, producing word timings and captions.srt"
-	)
-
-
 def render(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	raise NotImplementedError(
 		"render: not built yet. Planned: render/remotion takes one scene plus its "

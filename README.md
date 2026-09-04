@@ -65,6 +65,7 @@ uv run narratr doctor                        # is this machine ready
 uv run narratr validate scenes.json          # schema + coverage, costs nothing
 uv run narratr render scenes.json --detach   # returns a run id in ~1s
 uv run narratr status <run-id>               # progress
+uv run narratr blocks <doc> --json           # leaf block ids for the ledger
 ```
 
 `--detach` survives the terminal closing, the parent shell exiting, and the
@@ -123,7 +124,7 @@ Run `make` on its own for the full target list.
 | Block extraction | **working** |
 | Narration (Chatterbox Turbo) | **working**, benchmarked |
 | Detached, resumable runs | **working** |
-| Alignment (WhisperX) | not built |
+| Alignment (forced, torchaudio) | **working**, word timings + captions.srt |
 | Scene render (Remotion) | not built |
 | Stitch (FFmpeg) | not built |
 

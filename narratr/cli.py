@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from narratr import blocks, doctor, narrate, stages
+from narratr import align, blocks, doctor, narrate, stages
 from narratr.paths import RUNS
 from narratr.spec import SpecError, load_spec, summarise, validate
 from narratr.state import Manifest, run_id_for
@@ -82,7 +82,7 @@ def cmd_render(args: argparse.Namespace) -> int:
 	print(f"run {run_id}: {spec['source']['title']}")
 
 	narrate.run(spec, manifest, run_dir)
-	for stage in (stages.align, stages.render):
+	for stage in (align.run, stages.render):
 		try:
 			stage(spec, manifest, run_dir)
 		except NotImplementedError as exc:
@@ -154,7 +154,7 @@ def main() -> int:
 	}
 	try:
 		return handlers[args.cmd](args)
-	except (SpecError, narrate.NarrationError) as exc:
+	except (SpecError, narrate.NarrationError, align.AlignmentError) as exc:
 		print(f"❌ {exc}", file=sys.stderr)
 		return 1
 
