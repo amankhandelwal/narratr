@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "source": {
+    "title": "narratr in brief",
+    "origin": "docs/research-plan.md (excerpt)",
+    "block_ids": [
+      "brief-1",
+      "brief-2",
+      "brief-3",
+      "brief-4",
+      "brief-5",
+      "brief-6"
+    ]
+  },
+  "coverage": {
+    "brief-1": "what-it-is",
+    "brief-2": "the-failure",
+    "brief-3": "the-fix",
+    "brief-4": "the-flow",
+    "brief-5": "the-cost",
+    "brief-6": "where-it-stands"
+  },
+  "voice": {
+    "reference": "assets/voices/sample-01.wav",
+    "seed": 7
+  },
+  "scenes": [
+    {
+      "id": "what-it-is",
+      "type": "prose",
+      "heading": "narratr",
+      "bullets": [
+        "Document in",
+        "Narrated video out",
+        "All on your laptop"
+      ],
+      "narration": "narratr turns a document into a narrated video, and it runs entirely on your own machine. Claude reads the document and writes the script. Your laptop does the rest, over the next couple of hours, while you get on with something else."
+    },
+    {
+      "id": "the-failure",
+      "type": "prose",
+      "heading": "The usual failure",
+      "bullets": [
+        "Slides first",
+        "Narration second",
+        "Drift forever"
+      ],
+      "narration": "Every project like this fails the same way. You build the slides first, then try to make the narration fit them. The timing drifts, and there is no fixing it, because every edit breaks the alignment all over again."
+    },
+    {
+      "id": "the-fix",
+      "type": "prose",
+      "heading": "Narration is the clock",
+      "bullets": [
+        "Script first",
+        "Then audio",
+        "Then pictures"
+      ],
+      "narration": "So invert it. The script comes first. Speech renders each scene and reports exactly how long it turned out to be. Only then does anything get drawn, and the renderer is simply told how much time it has. Synchronisation stops being a problem you solve."
+    },
+    {
+      "id": "the-flow",
+      "type": "diagram",
+      "heading": "End to end",
+      "mermaid": "flowchart TD\n    A[\"doc.md\"] --> B[\"Claude writes script\"]\n    B --> C[\"Chatterbox speaks it\"]\n    C --> D[\"Renderer draws to fit\"]\n    D --> E[\"video.mp4\"]",
+      "revealSteps": [
+        [
+          "A"
+        ],
+        [
+          "B"
+        ],
+        [
+          "C"
+        ],
+        [
+          "D",
+          "E"
+        ]
+      ],
+      "narration": "A document goes in. Claude turns it into a scene list. Chatterbox speaks each scene and measures it. The renderer draws to fit. FFmpeg joins the pieces into one file."
+    },
+    {
+      "id": "the-cost",
+      "type": "prose",
+      "heading": "Zero dollars",
+      "bullets": [
+        "No API credits",
+        "No monthly floor",
+        "Two and a half hours"
+      ],
+      "narration": "A video costs nothing to make. There is no API credit to buy and no monthly floor to clear. What you pay instead is time. A thirty six minute video takes about two and a half hours of compute, and none of it needs you watching."
+    },
+    {
+      "id": "where-it-stands",
+      "type": "prose",
+      "heading": "Where it stands",
+      "bullets": [
+        "Voice works",
+        "Runs resume",
+        "Renderer not built"
+      ],
+      "narration": "As things stand, the narration works and has been measured. Runs checkpoint after every scene, so a closed laptop lid costs you ninety seconds rather than the afternoon. The renderer does not exist yet. That is the next piece."
+    }
+  ]
+}

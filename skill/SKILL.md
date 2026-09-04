@@ -29,12 +29,24 @@ integration and does not need one.
 
 ## 2. Pass 1 — outline
 
-Break the source into leaf blocks and give each an id. Map **every** block to a
-scene. Unmapped blocks are a hard failure, not a warning: a script that reads
-well but silently dropped a third of the document is the failure mode this
-whole design exists to prevent.
+**Get the block ids from the tool, never by hand:**
 
-Scenes run 30–60 seconds of narration. Longer drifts, shorter feels choppy.
+```sh
+uv run narratr blocks <document> --json
+```
+
+That output *is* `source.block_ids`. Copy it verbatim.
+
+This matters more than it looks. If you decide both what counts as a block and
+which blocks are covered, the gate is circular — anything you skip can simply be
+left off the list, and validation still passes. Deriving the list mechanically is
+the only thing that makes "every block is mapped" mean anything.
+
+Then map **every** id to a scene. A script that reads well but silently dropped a
+third of the document is the failure mode this whole design exists to prevent.
+
+Scenes run 30–60 seconds of narration, roughly 75–150 words. Longer drifts,
+shorter feels choppy.
 
 ## 3. Pass 2 — write the scenes
 

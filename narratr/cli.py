@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from narratr import doctor, narrate, stages
+from narratr import blocks, doctor, narrate, stages
 from narratr.paths import RUNS
 from narratr.spec import SpecError, load_spec, summarise, validate
 from narratr.state import Manifest, run_id_for
@@ -20,6 +20,22 @@ from narratr.state import Manifest, run_id_for
 
 def cmd_doctor(args: argparse.Namespace) -> int:
 	return doctor.report()
+
+
+def cmd_blocks(args: argparse.Namespace) -> int:
+	"""Emit the leaf blocks of a document, for the coverage ledger.
+
+	Pass 1 must build source.block_ids from this rather than by hand. A
+	hand-written list can silently omit whatever the scene plan skipped.
+	"""
+	found = blocks.extract_file(args.document)
+	if args.json:
+		print(json.dumps([b["id"] for b in found], indent=2))
+	else:
+		for block in found:
+			print(f"  {block['id']:34} {block['kind']}")
+		print(f"\n{len(found)} leaf blocks")
+	return 0
 
 
 def cmd_validate(args: argparse.Namespace) -> int:
@@ -106,6 +122,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 	sub.add_parser("doctor", help="check this machine can render")
 
+	blocks_cmd = sub.add_parser("blocks", help="list a document's leaf blocks for the ledger")
+	blocks_cmd.add_argument("document", type=Path)
+	blocks_cmd.add_argument("--json", action="store_true", help="emit ids as a JSON array")
+
 	validate_cmd = sub.add_parser("validate", help="schema + coverage check, spends nothing")
 	validate_cmd.add_argument("scenes", type=Path)
 
@@ -127,6 +147,7 @@ def main() -> int:
 	args = build_parser().parse_args()
 	handlers = {
 		"doctor": cmd_doctor,
+		"blocks": cmd_blocks,
 		"validate": cmd_validate,
 		"render": cmd_render,
 		"status": cmd_status,
