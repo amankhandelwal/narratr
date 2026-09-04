@@ -27,7 +27,7 @@ A Claude skill plus a local CLI. Claude reads a document and writes the script; 
 
 **Cost per video: $0.** Claude runs on the subscription that already powers your session. Everything else is local.
 
-**The budget is wall clock:** ~2.5 hours for a 36-minute video, most of it TTS.
+**The budget is wall clock:** about 2 hours for a 36-minute video, most of it TTS.
 
 **Three decisions carry the design:**
 
@@ -112,6 +112,8 @@ flowchart TD
 
 **The coverage ledger is the FOMO cure.** Every leaf block gets an id. Pass 1 must map each one to a scene. `narratr validate` fails on any unmapped block, any mapping to a scene that does not exist, and any block that was invented. This runs before compute is spent and costs nothing.
 
+**The block list must come from the document, not the author.** `narratr blocks <doc> --json` extracts it mechanically. If the same pass decides both what counts as a block and which blocks are covered, the gate is circular — anything skipped can simply be left off the list and validation still passes. This was a real hole, found by running the skill on this document.
+
 Running the script engine inside the live session — rather than shelling out to `claude -p` — removes a whole category of problem. There is no subprocess to authenticate, no ambient config to pin, and no exposure to `--bare` becoming the default for `-p`. Claude is already the script engine.
 
 ---
@@ -124,12 +126,12 @@ Running the script engine inside the live session — rather than shelling out t
 
 M4 Pro / 24 GB, real runs:
 
-| Model | Load | Warm rtf | Extrapolated to 36 min |
+| Model | Load | Sustained rtf | Extrapolated to 36 min |
 |---|---|---|---|
-| Standard (0.5B) | 15–17s | 2.92–3.50 | ~160–216 min |
-| **Turbo (350M)** | 75s | **1.59** | **~100 min** |
+| Standard (0.5B) | 15–17s | 2.9–3.5 | ~160–216 min |
+| **Turbo (350M)** | 75s | **1.0–1.35** | **~80 min** |
 
-`rtf` is seconds of compute per second of audio. Variance on MPS is wide — the standard model swung 40% between identical runs, and Turbo has been observed between 1.25 and 5.61 on individual scenes. Plan against **~100 minutes**.
+`rtf` is seconds of compute per second of audio. Measured over a six-scene run, which matters: an earlier two-scene benchmark reported 1.59 and hid a 4× regression that only appears once memory pressure builds. **Benchmark six scenes or more, never two.**
 
 ### What this constrains
 
@@ -137,6 +139,7 @@ M4 Pro / 24 GB, real runs:
 - **Pin the reference clip and the seed.** Both are conditioning inputs, and cross-scene consistency is the quality risk that matters.
 - **Pin `setuptools<81`.** Chatterbox's watermarker imports `pkg_resources`, swallows the ImportError, and dies far away with `'NoneType' object is not callable`.
 - **Weights are ~3.8 GB**, pulled once into the shared HuggingFace cache.
+- **Release the MPS allocator cache between scenes.** Left alone it reserves 14.6 GB against 2.9 GB live, which over-commits a 24 GB machine and drives ~1M page-ins per generation. One `torch.mps.empty_cache()` per scene holds it near 3.6 GB and keeps rtf flat. Any future stage running a model on MPS needs the same.
 
 ### Captions
 
@@ -251,15 +254,15 @@ caffeinate -is uv run narratr render scenes.json
 | Stage | Time | Basis |
 |---|---|---|
 | Script | minutes | In-session, conversational |
-| **Narration** | **~100 min** | Measured, rtf 1.59 |
+| **Narration** | **~80 min** | Measured, sustained rtf 1.33 |
 | Alignment | ~10 min | Estimate, unmeasured |
 | Render | 30–60 min | Estimate, unmeasured |
 | Stitch | seconds | Stream copy |
-| **Total** | **~2.5 h** | |
+| **Total** | **~2 h** | |
 
 Only narration is measured. Benchmark the render on day one with `npx remotion benchmark`; if it is worse than expected, drop to 24fps and 1600×900 before changing anything architectural.
 
-**Drafting does not cost 2.5 hours.** Content-addressing means a single edited scene re-renders alone, in minutes.
+**Drafting does not cost 2 hours.** Content-addressing means a single edited scene re-renders alone, in minutes.
 
 ---
 
@@ -269,7 +272,7 @@ Only narration is measured. Benchmark the render on day one with `npx remotion b
 - **Remotion needs a paid Company License above 3 people.** The threshold is headcount, not whether anything is sold, and internal use counts. Using narratr on a work laptop triggers it. Free use needs no account or licence key — this is a terms obligation, not an enforced one. The renderer contract exists so Motion Canvas (MIT) can replace it; the swap gets more expensive with every scene component written.
 - **Cross-scene voice consistency is unproven.** Longest test so far is three scenes. Whether scene 40 still sounds like scene 3 is the open quality question and the failure mode local TTS is most prone to.
 - **The reference clip is a single point of failure.** Turbo has no fallback voice.
-- **MPS performance is unexplained and erratic.** An rtf of 1.59 against a quoted 0.499 on a 4090 is wider than hardware explains, and per-scene figures have ranged 1.25 to 5.61. `PYTORCH_ENABLE_MPS_FALLBACK=1` sends unsupported ops to CPU silently.
+- **~~MPS performance is unexplained~~ — resolved.** The erratic figures were the MPS caching allocator over-committing memory and forcing the machine to swap. Releasing it per scene fixed it. What remains unexplained is the gap to a quoted 0.499 on a 4090, and that `PYTORCH_ENABLE_MPS_FALLBACK=1` still sends unsupported ops to CPU silently. Neither is currently costing anything.
 - **Mermaid's SVG structure is not a public API.** Node ids and class names shift between versions. Pin the version and snapshot-test the selectors.
 
 ---
@@ -278,8 +281,9 @@ Only narration is measured. Benchmark the render on day one with `npx remotion b
 
 | Stage | State |
 |---|---|
-| Script engine | `skill/SKILL.md` written, unexercised on a real document |
-| Schema + coverage gate | built, 8 tests passing |
+| Script engine | working; produced 34 scenes covering all 51 blocks of this document |
+| Schema + coverage gate | working; verified to reject dropped blocks, ghost scenes and over-long slides |
+| Block extraction | working, mechanical |
 | Narration | **working**, benchmarked, resumable |
 | Detached runs | **working**, verified surviving the parent process |
 | Alignment | not built |
@@ -292,10 +296,10 @@ Only narration is measured. Benchmark the render on day one with `npx remotion b
 
 ## Next
 
-1. **Record a proper reference clip.** Ten clean seconds. Everything inherits it.
-2. **Run 20 scenes of a real document and listen straight through.** The cheapest test of the one risk that could still sink the TTS choice.
+1. **Record a proper reference clip.** Ten clean seconds. The sample in the repo is Chatterbox output, so it says nothing about how a real voice holds up.
+2. **Render the 34-scene spec and listen straight through.** The cheapest test of the one risk that could still sink the TTS choice.
 3. **Build alignment.** WhisperX over the existing audio; smallest remaining stage.
-4. **Benchmark Remotion before building scene components.** If render time is bad, that changes the design; if the licence forces a swap, better to know before writing them.
+4. **Benchmark Remotion before building scene components.** If render time is bad that changes the design; if the licence forces a swap, better to know before writing them.
 5. **Then** the renderer and stitch.
 
 ---

@@ -91,8 +91,8 @@ sound like you.
 **Nothing per video.** Claude runs on your existing subscription; everything
 else is local.
 
-The budget is wall clock: roughly **2.5 hours** for a 36-minute video on an
-M4 Pro, most of it narration at a measured real-time factor of 1.59.
+The budget is wall clock: roughly **2 hours** for a 36-minute video on an
+M4 Pro, most of it narration at a measured real-time factor of 1.33.
 
 To keep the machine awake through a long run:
 
@@ -118,8 +118,9 @@ Run `make` on its own for the full target list.
 
 | Stage | State |
 |---|---|
-| Script engine (Claude skill) | written, unexercised on a real document |
-| Schema + coverage gate | working |
+| Script engine (Claude skill) | **working**, 34 scenes from a real document |
+| Schema + coverage gate | **working**, rejects dropped blocks |
+| Block extraction | **working** |
 | Narration (Chatterbox Turbo) | **working**, benchmarked |
 | Detached, resumable runs | **working** |
 | Alignment (WhisperX) | not built |
