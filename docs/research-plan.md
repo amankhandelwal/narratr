@@ -260,11 +260,13 @@ caffeinate -is uv run narratr render scenes.json
 | Script | minutes | In-session, conversational |
 | **Narration** | **~80 min** | Measured, sustained rtf 1.33 |
 | Alignment | seconds | Measured, rtf 0.03 |
-| Render | 30–60 min | Estimate, unmeasured |
+| Render | ~20 min | Measured, rtf 0.55 |
 | Stitch | seconds | Stream copy |
 | **Total** | **~2 h** | |
 
-Only narration is measured. Benchmark the render on day one with `npx remotion benchmark`; if it is worse than expected, drop to 24fps and 1600×900 before changing anything architectural.
+All of it is now measured. Rendering came in at rtf 0.55 — faster than realtime, against an estimate of 30-60 minutes that was wrong by roughly 3×. 1080p30 has headroom; the fallback to 24fps and 1600×900 is not needed.
+
+Concurrency was swept from 4 to 12 on a 12-core machine: 6 and above are identical within noise, so Remotion's default needs no tuning.
 
 **Drafting does not cost 2 hours.** Content-addressing means a single edited scene re-renders alone, in minutes.
 
@@ -291,10 +293,10 @@ Only narration is measured. Benchmark the render on day one with `npx remotion b
 | Narration | **working**, benchmarked, resumable |
 | Detached runs | **working**, verified surviving the parent process |
 | Alignment | working, word timings + SRT |
-| Scene render | not built |
-| Stitch | not built |
+| Scene render | working, rtf 0.55 |
+| Stitch | working, stream copy |
 
-`narratr render` runs narration, then stops visibly at the first unbuilt stage and leaves completed audio in `runs/<id>/audio/`.
+A run now produces `runs/<id>/video.mp4` and `captions.srt` end to end.
 
 ---
 

@@ -1,0 +1,21 @@
+{
+  "name": "narratr-render",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Scene renderer. See ../CONTRACT.md for the interface it must satisfy.",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "benchmark": "remotion benchmark src/index.ts"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.17.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.6.0"
+  }
+}

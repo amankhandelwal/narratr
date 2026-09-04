@@ -93,7 +93,8 @@ sound like you.
 else is local.
 
 The budget is wall clock: roughly **2 hours** for a 36-minute video on an
-M4 Pro, most of it narration at a measured real-time factor of 1.33.
+M4 Pro. Narration dominates at rtf 1.33; rendering is rtf 0.55 and alignment
+is effectively free.
 
 To keep the machine awake through a long run:
 
@@ -117,19 +118,18 @@ Run `make` on its own for the full target list.
 
 ## Status
 
-| Stage | State |
-|---|---|
-| Script engine (Claude skill) | **working**, 34 scenes from a real document |
-| Schema + coverage gate | **working**, rejects dropped blocks |
-| Block extraction | **working** |
-| Narration (Chatterbox Turbo) | **working**, benchmarked |
-| Detached, resumable runs | **working** |
-| Alignment (forced, torchaudio) | **working**, word timings + captions.srt |
-| Scene render (Remotion) | not built |
-| Stitch (FFmpeg) | not built |
+Every stage works end to end. A run produces `runs/<id>/video.mp4` and
+`captions.srt`.
 
-`render` runs narration then stops visibly at the first unbuilt stage, leaving
-completed audio in `runs/<id>/audio/`.
+| Stage | Measured on an M4 Pro |
+|---|---|
+| Script engine (Claude skill) | conversational |
+| Narration (Chatterbox Turbo) | rtf 1.33 |
+| Alignment (torchaudio forced) | rtf 0.03 |
+| Scene render (Remotion) | rtf 0.55 |
+| Stitch (FFmpeg) | seconds, stream copy |
+
+Not yet done: Shiki syntax highlighting for code scenes, and chapter markers.
 
 ## Troubleshooting
 

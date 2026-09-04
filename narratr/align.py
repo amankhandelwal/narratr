@@ -185,8 +185,18 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	write_captions(spec, manifest, run_dir)
 
 
-def write_captions(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> Path:
-	"""Stitch per-scene timings into one SRT on the video's timeline."""
+def write_captions(
+	spec: dict[str, Any],
+	manifest: Manifest,
+	run_dir: Path,
+	durations: dict[str, float] | None = None,
+) -> Path:
+	"""Stitch per-scene timings into one SRT on the video's timeline.
+
+	`durations` overrides the per-scene audio length once the muxed segments
+	exist, so captions track the video's real timeline rather than drifting
+	by a frame per scene.
+	"""
 	timings_dir = run_dir / "timings"
 	cues: list[dict[str, Any]] = []
 	offset = 0.0
@@ -201,7 +211,7 @@ def write_captions(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> P
 			{**w, "start": w["start"] + offset, "end": w["end"] + offset} for w in payload["words"]
 		]
 		cues.extend(to_cues(shifted))
-		offset += payload["duration"]
+		offset += (durations or {}).get(scene["id"], payload["duration"])
 
 	path = run_dir / "captions.srt"
 	atomic_write(path, to_srt(cues))

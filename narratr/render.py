@@ -1,0 +1,144 @@
+"""Scene rendering: one mp4 per scene, fitted to its measured audio.
+
+The renderer is told how long it has and never asks for more. Everything it
+needs arrives as props; it does not read scenes.json. See render/CONTRACT.md.
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import time
+from pathlib import Path
+from typing import Any
+
+from narratr.paths import ROOT
+from narratr.state import Manifest
+
+REMOTION = ROOT / "render" / "remotion"
+FPS = 30
+
+
+class RenderError(Exception):
+	"""Rendering cannot proceed."""
+
+
+def _run(cmd: list[str], cwd: Path, what: str) -> None:
+	result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+	if result.returncode != 0:
+		tail = (result.stderr or result.stdout).strip().splitlines()[-6:]
+		raise RenderError(f"{what} failed:\n  " + "\n  ".join(tail))
+
+
+def mermaid_to_svg(source: str, out: Path) -> str:
+	"""Render a Mermaid diagram to SVG, cached by content address.
+
+	Pinning matters: node ids and class names are not a public API, and the
+	Diagram component matches on them.
+	"""
+	if not out.exists():
+		mmd = out.with_suffix(".mmd")
+		mmd.write_text(source)
+		tmp = out.with_name(f".{out.name}.partial.svg")
+		_run(
+			["npx", "mmdc", "-i", str(mmd), "-o", str(tmp), "-b", "transparent", "-t", "dark"],
+			REMOTION,
+			"mermaid",
+		)
+		tmp.rename(out)
+	return out.read_text()
+
+
+def _props_for(scene: dict[str, Any], duration: float, assets: Path) -> dict[str, Any]:
+	props: dict[str, Any] = {
+		"type": scene["type"],
+		"durationInSeconds": duration,
+		"heading": scene.get("heading"),
+	}
+	if scene["type"] == "prose":
+		props["bullets"] = scene.get("bullets", [])
+	elif scene["type"] == "diagram":
+		svg_path = assets / f"{scene['id']}.svg"
+		props["svg"] = mermaid_to_svg(scene["mermaid"], svg_path)
+		props["revealSteps"] = scene.get("revealSteps", [])
+	elif scene["type"] == "code":
+		props["code"] = scene.get("code", "")
+		props["lang"] = scene.get("lang")
+	return props
+
+
+def scene_duration(run_dir: Path, entry: dict[str, Any]) -> float:
+	"""Duration measured from the rendered audio, never estimated."""
+	import torchaudio
+
+	info = torchaudio.info(str(run_dir / "audio" / entry["audio"]))
+	return info.num_frames / info.sample_rate
+
+
+def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
+	todo = manifest.pending("video")
+	if not todo:
+		print("render: nothing to do")
+		return
+
+	missing = [sid for sid in todo if not manifest.data["scenes"][sid].get("audio")]
+	if missing:
+		raise RenderError(f"no audio yet for {', '.join(missing[:3])}; run narration first")
+
+	if not (REMOTION / "node_modules").exists():
+		raise RenderError(f"renderer not installed: run 'npm install' in {REMOTION}")
+
+	video_dir = run_dir / "video"
+	video_dir.mkdir(exist_ok=True)
+	assets = run_dir / "assets"
+	assets.mkdir(exist_ok=True)
+
+	by_id = {s["id"]: s for s in spec["scenes"]}
+	print(f"render: {len(todo)} scene(s) at {FPS}fps")
+	rendered = 0.0
+	elapsed = 0.0
+
+	for n, scene_id in enumerate(todo, 1):
+		entry = manifest.data["scenes"][scene_id]
+		out = video_dir / f"{scene_id}.{entry['key']}.mp4"
+
+		if out.exists():  # content-addressed hit
+			manifest.mark(scene_id, "video", out.name)
+			print(f"  [{n}/{len(todo)}] {scene_id}: cached")
+			continue
+
+		duration = scene_duration(run_dir, entry)
+		props = _props_for(by_id[scene_id], duration, assets)
+		props_file = assets / f"{scene_id}.props.json"
+		props_file.write_text(json.dumps(props))
+
+		tmp = out.with_name(f".{out.name}.partial.mp4")
+		started = time.perf_counter()
+		_run(
+			[
+				"npx",
+				"remotion",
+				"render",
+				"src/index.ts",
+				"Scene",
+				str(tmp),
+				f"--props={props_file}",
+				"--codec=h264",
+				"--log=error",
+			],
+			REMOTION,
+			f"render {scene_id}",
+		)
+		took = time.perf_counter() - started
+		tmp.rename(out)
+		manifest.mark(scene_id, "video", out.name)
+
+		rendered += duration
+		elapsed += took
+		print(
+			f"  [{n}/{len(todo)}] {scene_id}: {duration:5.1f}s video in {took:5.1f}s "
+			f"(rtf {took / duration:.2f})"
+		)
+
+	if rendered:
+		print(f"✓ render: {rendered:.0f}s video in {elapsed:.0f}s (rtf {elapsed / rendered:.2f})")
