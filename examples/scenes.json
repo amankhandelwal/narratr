@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "source": {
+    "title": "Audio-first video generation",
+    "origin": "inline",
+    "block_ids": ["intro-p1", "intro-p2", "arch-diagram"]
+  },
+  "coverage": {
+    "intro-p1": "the-problem",
+    "intro-p2": "the-inversion",
+    "arch-diagram": "the-pipeline"
+  },
+  "voice": { "reference": "assets/voices/sample-01.wav", "seed": 7 },
+  "scenes": [
+    {
+      "id": "the-problem",
+      "type": "prose",
+      "heading": "Why these projects fail",
+      "bullets": ["Slides first", "Narration second", "Drift forever"],
+      "narration": "Every document to video project fails the same way. You build the slides first, then try to make the narration fit them. Timing drift is unfixable, and every edit re-breaks it."
+    },
+    {
+      "id": "the-inversion",
+      "type": "prose",
+      "heading": "Invert it",
+      "bullets": ["Narration is the clock", "Duration is measured", "Sync is free"],
+      "narration": "So invert it. Narration becomes the master clock. The renderer is told how long it has, and fits its animation into whatever it is given. Sync stops being a problem you solve and becomes one you never have."
+    },
+    {
+      "id": "the-pipeline",
+      "type": "diagram",
+      "heading": "The pipeline",
+      "mermaid": "flowchart TD\n    A[\"doc.md\"] --> B[\"Script\"]\n    B --> C[\"Narrate\"]\n    C --> D[\"Render\"]\n    D --> E[\"video.mp4\"]",
+      "revealSteps": [["A"], ["B"], ["C", "D"], ["E"]],
+      "narration": "Five stages. The document becomes a script, the script becomes audio, and only then does anything get drawn. Rendering is last because it is the only stage that needs to know how long each scene runs."
+    }
+  ]
+}

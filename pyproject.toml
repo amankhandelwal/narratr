@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["narratr*"]
+
+[project]
+name = "narratr"
+version = "0.1.0"
+description = "Turn a document into a narrated video, locally"
+readme = "README.md"
+# Verified on 3.11.9. Capped below 3.13 because the Chatterbox stack has not
+# been checked there.
+requires-python = ">=3.11.9,<3.13"
+dependencies = [
+    # Chatterbox's watermarker imports pkg_resources, which setuptools 81
+    # removed. Without this pin the model load dies with a misleading
+    # "'NoneType' object is not callable" far from the real cause.
+    "setuptools<81",
+    # Narration
+    "chatterbox-tts>=0.1.4",
+    "torch~=2.6.0",
+    "torchaudio~=2.6.0",
+    # scenes.json is a contract, so validate it rather than trust it
+    "jsonschema>=4.26.0",
+]
+
+[project.scripts]
+narratr = "narratr.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.18.2",
+    "pre-commit>=4.3.0",
+    "pytest>=8.4.2",
+    "ruff>=0.14.2",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

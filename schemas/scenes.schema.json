@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "narratr scenes",
+  "description": "The contract between Claude and the renderer. Claude produces this; every stage after it is deterministic.",
+  "type": "object",
+  "required": ["version", "source", "coverage", "scenes"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "source": {
+      "type": "object",
+      "required": ["title", "block_ids"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "origin": { "type": "string", "description": "notion url, file path, or 'inline'" },
+        "block_ids": {
+          "type": "array",
+          "description": "Every leaf block in the source document. Pass 1 must map all of them.",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "description": "block_id -> scene_id. Validated as a hard gate before any compute is spent.",
+      "additionalProperties": { "type": "string" }
+    },
+    "voice": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reference": { "type": "string", "description": "path to a 10s reference clip" },
+        "seed": { "type": "integer" }
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "narration"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+          "type": { "enum": ["prose", "diagram", "code"] },
+          "narration": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Spoken text. This is the master clock: its rendered duration sets the scene length."
+          },
+          "heading": { "type": "string" },
+          "bullets": {
+            "type": "array",
+            "items": { "type": "string" },
+            "maxItems": 6,
+            "description": "Fragments, never sentences. Six objects max per slide."
+          },
+          "mermaid": { "type": "string", "description": "diagram scenes only" },
+          "revealSteps": {
+            "type": "array",
+            "description": "Groups of SVG node ids revealed as beats across the scene.",
+            "items": { "type": "array", "items": { "type": "string" } }
+          },
+          "code": { "type": "string" },
+          "lang": { "type": "string" }
+        }
+      }
+    }
+  }
+}
