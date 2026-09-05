@@ -27,7 +27,7 @@ A Claude skill plus a local CLI. Claude reads a document and writes the script; 
 
 **Cost per video: $0.** Claude runs on the subscription that already powers your session. Everything else is local.
 
-**The budget is wall clock:** about 2 hours for a 36-minute video, most of it TTS.
+**The budget is wall clock:** about twice the video's length, most of it TTS. A two-minute clip costs about four minutes.
 
 **Three decisions carry the design:**
 
@@ -126,10 +126,10 @@ Running the script engine inside the live session — rather than shelling out t
 
 M4 Pro / 24 GB, real runs:
 
-| Model | Load | Sustained rtf | Extrapolated to 36 min |
-|---|---|---|---|
-| Standard (0.5B) | 15–17s | 2.9–3.5 | ~160–216 min |
-| **Turbo (350M)** | 75s | **1.0–1.35** | **~80 min** |
+| Model | Load | Sustained rtf |
+|---|---|---|
+| Standard (0.5B) | 15–17s | 2.9–3.5 |
+| **Turbo (350M)** | 75s | **1.0–1.35** |
 
 `rtf` is seconds of compute per second of audio. Measured over a six-scene run, which matters: an earlier two-scene benchmark reported 1.59 and hid a 4× regression that only appears once memory pressure builds. **Benchmark six scenes or more, never two.**
 
@@ -176,7 +176,7 @@ flowchart TD
 
 **Diagram animation, concretely.** Mermaid emits an SVG where every node is `g.node[id]` and every edge is `g.edgePath`. Claude emits a `revealSteps` array grouping those ids into beats. Remotion interpolates opacity per group across the scene's duration. No third-party service.
 
-**Render per scene, concat after.** Remotion slows down on very long single compositions. Forty 50-second renders beat one 36-minute render, and per-scene output is what makes the run resumable.
+**Render per scene, concat after.** Remotion slows down on very long single compositions, so scene-sized renders are the safe unit regardless of total length. Per-scene output is also what makes a run resumable and what lets a single edited scene re-render alone.
 
 **The renderer sits behind a contract** (`render/CONTRACT.md`): it receives one scene, its measured duration, and an output path. It knows nothing about TTS, alignment, or scene ordering. That boundary exists so Remotion can be replaced without touching anything upstream — see Risks.
 
@@ -255,26 +255,26 @@ caffeinate -is uv run narratr render scenes.json
 
 ### Wall clock is the real budget
 
-| Stage | Time | Basis |
+Real-time factors, which scale to whatever length you make. All measured, none estimated.
+
+| Stage | rtf | 74s clip |
 |---|---|---|
-| Script | minutes | In-session, conversational |
-| **Narration** | **~80 min** | Measured, sustained rtf 1.33 |
-| Alignment | seconds | Measured, rtf 0.03 |
-| Render | ~20 min | Measured, rtf 0.55 |
-| Stitch | seconds | Stream copy |
-| **Total** | **~2 h** | |
+| Script | — | conversational |
+| **Narration** | **1.33** | ~97s |
+| Alignment | 0.03 | ~2s |
+| Render | 0.55 | ~40s |
+| Stitch | copy | ~1s |
+| **Total** | **~1.9** | **~2.5 min** |
 
-All of it is now measured. Rendering came in at rtf 0.55 — faster than realtime, against an estimate of 30-60 minutes that was wrong by roughly 3×. 1080p30 has headroom; the fallback to 24fps and 1600×900 is not needed.
+Rendering came in faster than realtime, against an estimate that was wrong by roughly 3×. 1080p30 has headroom; the planned fallback to 24fps and 1600×900 is not needed. Concurrency swept 4 to 12 on a 12-core machine: identical above 6, so Remotion's default needs no tuning.
 
-Concurrency was swept from 4 to 12 on a 12-core machine: 6 and above are identical within noise, so Remotion's default needs no tuning.
-
-**Drafting does not cost 2 hours.** Content-addressing means a single edited scene re-renders alone, in minutes.
+**Work in short clips.** `examples/brief.scenes.json` is six scenes and runs cold in about two minutes, which is the right unit for iterating. Content addressing means a single edited scene re-renders alone.
 
 ---
 
 ## Risks
 
-- **Script quality is the whole product.** Voice and animation are solved. Whether the narration is worth 36 minutes of attention is decided in the Pass-1/Pass-2 prompts. Budget most of the effort there.
+- **Script quality is the whole product.** Voice and animation are solved. Whether the narration is worth watching is decided in the Pass-1/Pass-2 prompts. Budget most of the effort there.
 - **Remotion needs a paid Company License above 3 people.** The threshold is headcount, not whether anything is sold, and internal use counts. Using narratr on a work laptop triggers it. Free use needs no account or licence key — this is a terms obligation, not an enforced one. The renderer contract exists so Motion Canvas (MIT) can replace it; the swap gets more expensive with every scene component written.
 - **Cross-scene voice consistency is unproven.** Longest test so far is three scenes. Whether scene 40 still sounds like scene 3 is the open quality question and the failure mode local TTS is most prone to.
 - **The reference clip is a single point of failure.** Turbo has no fallback voice.
@@ -302,11 +302,11 @@ A run now produces `runs/<id>/video.mp4` and `captions.srt` end to end.
 
 ## Next
 
-1. **Record a proper reference clip.** Ten clean seconds. The sample in the repo is Chatterbox output, so it says nothing about how a real voice holds up.
-2. **Render the 34-scene spec and listen straight through.** The cheapest test of the one risk that could still sink the TTS choice.
-3. **Build alignment.** WhisperX over the existing audio; smallest remaining stage.
-4. **Benchmark Remotion before building scene components.** If render time is bad that changes the design; if the licence forces a swap, better to know before writing them.
-5. **Then** the renderer and stitch.
+Everything in the original plan is built. What remains is refinement:
+
+1. **Chapter markers** in the final concat.
+2. **Shiki highlighting** for code scenes, which currently render as plain monospace.
+3. **Fail loudly on silent audio**, so the class of bug that shipped once cannot ship again.
 
 ---
 

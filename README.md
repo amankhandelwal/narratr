@@ -92,9 +92,9 @@ sound like you.
 **Nothing per video.** Claude runs on your existing subscription; everything
 else is local.
 
-The budget is wall clock: roughly **2 hours** for a 36-minute video on an
-M4 Pro. Narration dominates at rtf 1.33; rendering is rtf 0.55 and alignment
-is effectively free.
+The budget is wall clock, at roughly **twice the video's length** on an M4 Pro.
+The bundled 6-scene example runs cold in about 2 minutes. Narration dominates
+at rtf 1.33; rendering is 0.55 and alignment is effectively free.
 
 To keep the machine awake through a long run:
 
