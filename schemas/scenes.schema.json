@@ -32,7 +32,14 @@
       "additionalProperties": false,
       "properties": {
         "reference": { "type": "string", "description": "path to a 10s reference clip" },
-        "seed": { "type": "integer" }
+        "seed": { "type": "integer" },
+        "speed": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 4,
+          "default": 1,
+          "description": "playback tempo; below 1 is slower. Pitch is unchanged, and narration is not regenerated."
+        }
       }
     },
     "scenes": {

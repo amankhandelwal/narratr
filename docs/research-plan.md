@@ -141,6 +141,17 @@ M4 Pro / 24 GB, real runs:
 - **Weights are ~3.8 GB**, pulled once into the shared HuggingFace cache.
 - **Release the MPS allocator cache between scenes.** Left alone it reserves 14.6 GB against 2.9 GB live, which over-commits a 24 GB machine and drives ~1M page-ins per generation. One `torch.mps.empty_cache()` per scene holds it near 3.6 GB and keeps rtf flat. Any future stage running a model on MPS needs the same.
 
+### Speed
+
+`voice.speed` resamples the narration with ffmpeg's `atempo`, which changes pace
+without shifting pitch. It runs as its own stage between narration and
+alignment, because word timings must be measured from whatever audio ships.
+
+Keyed apart from narration on purpose: narration is the most expensive stage in
+the pipeline and a resample is close to free, so trying a speed costs seconds
+rather than a full re-narration. The picture depends on it too, since a scene's
+length comes from the sped audio.
+
 ### Captions
 
 Forced alignment, not transcription. The text is known exactly — it is what we asked Chatterbox to say — so `torchaudio`'s CTC aligner and the MMS_FA bundle line the words up against the audio directly.

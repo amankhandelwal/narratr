@@ -71,6 +71,15 @@ def renderer_digest() -> str:
 	return digest(parts)
 
 
+def speech_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
+	"""Narration plus playback speed.
+
+	Separate from audio_key so changing the speed resamples what already exists
+	instead of re-narrating it.
+	"""
+	return digest([audio_key(scene, spec), spec.get("voice", {}).get("speed", 1.0)])
+
+
 def video_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 	"""What the picture depends on.
 
@@ -78,7 +87,7 @@ def video_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 	reuses the narration, and editing narration does both.
 	"""
 	return digest(
-		[audio_key(scene, spec), renderer_digest()] + [scene.get(field) for field in VISUAL_FIELDS]
+		[speech_key(scene, spec), renderer_digest()] + [scene.get(field) for field in VISUAL_FIELDS]
 	)
 
 
@@ -130,8 +139,10 @@ class Manifest:
 			"scenes": {
 				s["id"]: {
 					"audio_key": audio_key(s, spec),
+					"speech_key": speech_key(s, spec),
 					"video_key": video_key(s, spec),
 					"audio": None,
+					"speech": None,
 					"aligned": None,
 					"video": None,
 				}
@@ -151,13 +162,20 @@ class Manifest:
 		"""
 		for scene in spec["scenes"]:
 			entry = self.data["scenes"].setdefault(
-				scene["id"], {"audio": None, "aligned": None, "video": None}
+				scene["id"],
+				{"audio": None, "speech": None, "aligned": None, "video": None},
 			)
 			fresh_audio = audio_key(scene, spec)
+			fresh_speech = speech_key(scene, spec)
 			fresh_video = video_key(scene, spec)
 			if entry.get("audio_key") != fresh_audio:
 				entry["audio_key"] = fresh_audio
 				entry["audio"] = None
+			if entry.get("speech_key") != fresh_speech:
+				# Timings and picture are measured from the sped audio, so a
+				# speed change invalidates both -- but never the narration.
+				entry["speech_key"] = fresh_speech
+				entry["speech"] = None
 				entry["aligned"] = None
 			if entry.get("video_key") != fresh_video:
 				entry["video_key"] = fresh_video
@@ -166,7 +184,12 @@ class Manifest:
 			# A manifest that claims work is done while the artifact is gone
 			# leaves the pipeline reporting "nothing to do" and producing a
 			# stale video. Trust the filesystem over the record.
-			for stage, folder in (("audio", "audio"), ("aligned", "timings"), ("video", "video")):
+			for stage, folder in (
+				("audio", "audio"),
+				("speech", "speech"),
+				("aligned", "timings"),
+				("video", "video"),
+			):
 				name = entry.get(stage)
 				if name and not (STORE / folder / name).exists():
 					entry[stage] = None

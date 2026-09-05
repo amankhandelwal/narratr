@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from narratr import speed
 from narratr.paths import ROOT, STORE
 from narratr.state import Manifest
 
@@ -111,7 +112,7 @@ def scene_duration(entry: dict[str, Any]) -> float:
 	"""Duration measured from the rendered audio, never estimated."""
 	import torchaudio
 
-	info = torchaudio.info(str(STORE / "audio" / entry["audio"]))
+	info = torchaudio.info(str(speed.path_for(entry)))
 	return info.num_frames / info.sample_rate
 
 

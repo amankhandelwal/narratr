@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from narratr import speed
 from narratr.device import release_cache, select
 from narratr.paths import STORE
 from narratr.state import Manifest, atomic_write
@@ -128,7 +129,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	timings_dir = STORE / "timings"
 	remaining = []
 	for scene_id in todo:
-		cached = timings_dir / f"{manifest.data['scenes'][scene_id]['audio_key']}.json"
+		cached = timings_dir / f"{manifest.data['scenes'][scene_id]['speech_key']}.json"
 		if cached.exists():
 			manifest.mark(scene_id, "aligned", cached.name)
 		else:
@@ -163,8 +164,8 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 
 	for n, scene_id in enumerate(todo, 1):
 		entry = manifest.data["scenes"][scene_id]
-		out = timings_dir / f"{entry['audio_key']}.json"
-		wav_path = STORE / "audio" / entry["audio"]
+		out = timings_dir / f"{entry['speech_key']}.json"
+		wav_path = speed.path_for(entry)
 		started = time.perf_counter()
 		words = _align_one(
 			by_id[scene_id]["narration"], wav_path, model, tokenizer, aligner, MMS_FA, device

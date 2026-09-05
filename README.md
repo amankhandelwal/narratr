@@ -101,6 +101,17 @@ uv run narratr render examples/scenes.json
 
 ## Voice
 
+Set the pace in `scenes.json`:
+
+```json
+"voice": { "reference": "assets/voices/sample-01.wav", "seed": 7, "speed": 0.92 }
+```
+
+Below 1 is slower; pitch is unchanged. Speed is keyed separately from narration,
+so trying a different one resamples what already exists rather than
+regenerating it — about 40s for a six-scene clip instead of two and a half
+minutes.
+
 Chatterbox Turbo has **no built-in voice**. It speaks only as the reference clip
 you give it, and that clip's quality caps every video you make.
 

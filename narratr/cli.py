@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from narratr import align, blocks, doctor, narrate, render, stitch
+from narratr import align, blocks, doctor, narrate, render, speed, stitch
 from narratr.paths import RUNS
 from narratr.spec import SpecError, load_spec, summarise, validate
 from narratr.state import Manifest, run_dir_name
@@ -103,7 +103,11 @@ def cmd_render(args: argparse.Namespace) -> int:
 	narrate.run(spec, manifest, run_dir)
 	# Stitching a subset would overwrite video.mp4 with a partial video, so a
 	# restricted run stops after the per-scene files.
-	stages = (align.run, render.run) if args.only else (align.run, render.run, stitch.run)
+	stages = (
+		(speed.run, align.run, render.run)
+		if args.only
+		else (speed.run, align.run, render.run, stitch.run)
+	)
 	for stage in stages:
 		try:
 			stage(spec, manifest, run_dir)
@@ -224,6 +228,7 @@ def main() -> int:
 		align.AlignmentError,
 		render.RenderError,
 		stitch.StitchError,
+		speed.SpeedError,
 	) as exc:
 		print(f"❌ {exc}", file=sys.stderr)
 		return 1

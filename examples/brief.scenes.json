@@ -22,7 +22,8 @@
   },
   "voice": {
     "reference": "assets/voices/sample-01.wav",
-    "seed": 7
+    "seed": 7,
+    "speed": 0.92
   },
   "scenes": [
     {

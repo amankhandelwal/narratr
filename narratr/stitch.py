@@ -20,6 +20,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from narratr import speed
 from narratr.paths import STORE
 from narratr.state import Manifest, digest
 
@@ -172,10 +173,10 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	print(f"stitch: {len(scenes)} scene(s)")
 	for scene in scenes:
 		entry = manifest.data["scenes"][scene["id"]]
-		source = STORE / "audio" / entry["audio"]
+		source = speed.path_for(entry)
 		target = frame_aligned(probe_duration(source))
 
-		padded = padded_dir / f"{entry['audio_key']}.{FPS}.wav"
+		padded = padded_dir / f"{entry['speech_key']}.{FPS}.wav"
 		if not padded.exists():
 			pad_to(source, target, padded)
 		check_audible(padded, scene["id"])
@@ -192,7 +193,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	# rather than re-encoding the whole narration.
 	final_key = digest(
 		[
-			[e["audio_key"], e["video_key"]]
+			[e["speech_key"], e["video_key"]]
 			for e in (manifest.data["scenes"][s["id"]] for s in scenes)
 		]
 	)
