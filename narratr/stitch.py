@@ -65,11 +65,18 @@ def preview(manifest: Manifest, scene_id: str, run_dir: Path) -> Path | None:
 	The rendered scene mp4 carries Remotion's silent track, so the artifact
 	--only pointed at could not be listened to -- against a working agreement
 	that says to look at the artifact rather than the exit code.
+
+	Kept in its own directory. A scene id is `^[a-z0-9_-]+$`, so `video` is a
+	legal one and `<scene_id>.mp4` in the run root would have overwritten the
+	finished video with a single scene. It also keeps an iteration artifact out
+	of the directory holding the deliverable.
 	"""
 	entry = manifest.data["scenes"].get(scene_id, {})
 	if not (entry.get("video") and entry.get("speech")):
 		return None
-	out = run_dir / f"{scene_id}.mp4"
+	preview_dir = run_dir / "preview"
+	preview_dir.mkdir(parents=True, exist_ok=True)
+	out = preview_dir / f"{scene_id}.mp4"
 	tmp = out.with_name(f".{out.name}.partial.mp4")
 	try:
 		ffmpeg(

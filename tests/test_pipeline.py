@@ -147,3 +147,37 @@ def test_a_readable_title_is_left_alone():
 
 	assert safe_name("narratr in brief") == "narratr in brief"
 	assert safe_name("with\nnewline") == "with newline"
+
+
+# ---------------------------------------------------------------- preview
+
+
+def test_a_scene_preview_cannot_overwrite_the_finished_video(tmp_path, monkeypatch):
+	"""`video` is a legal scene id, so a preview written as <id>.mp4 in the run
+	root would have replaced the stitched video with one scene of it."""
+	from narratr import stitch
+
+	calls: list[list[str]] = []
+	monkeypatch.setattr(stitch, "ffmpeg", lambda args, what: calls.append(args))
+	monkeypatch.setattr(Path, "rename", lambda self, target: None)
+	monkeypatch.setattr(Path, "unlink", lambda self, missing_ok=False: None)
+	monkeypatch.setattr(stitch.speed, "path_for", lambda entry: Path("speech.wav"))
+
+	manifest = Manifest(
+		tmp_path / "m.json", {"scenes": {"video": {"video": "v.mp4", "speech": "s.wav"}}}
+	)
+	out = stitch.preview(manifest, "video", tmp_path)
+
+	assert out is not None
+	assert out != tmp_path / "video.mp4"
+	assert out.parent.name == "preview"
+
+
+def test_a_preview_needs_both_halves(tmp_path):
+	from narratr import stitch
+
+	manifest = Manifest(
+		tmp_path / "m.json", {"scenes": {"one": {"video": "v.mp4", "speech": None}}}
+	)
+	assert stitch.preview(manifest, "one", tmp_path) is None
+	assert stitch.preview(manifest, "absent", tmp_path) is None
