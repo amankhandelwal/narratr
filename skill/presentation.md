@@ -46,7 +46,7 @@ a time.
 The same five-node pipeline measures 114×756 as `TD` and 606×124 as `LR` — one
 is a sliver down the middle of the screen, the other fills it.
 
-**### Size a diagram for the frame
+### Size a diagram for the frame
 
 A diagram is scaled whole to fit an 1728x814 box. Nothing reflows and the font
 never shrinks on its own — the picture just gets smaller, text included. Padding
@@ -112,8 +112,10 @@ flowchart LR
 A recap scene introduces no new source blocks. That is fine; the coverage gate
 maps blocks to scenes, not scenes to blocks.
 
-Give diagram nodes icons.** Same as bullets, steps and cards — a node names
-a thing, and the glyph says which thing at a glance:
+### Give diagram nodes icons
+
+Same as bullets, steps and cards — a node names a thing, and the glyph says
+which thing at a glance:
 
 ```
 flowchart LR
