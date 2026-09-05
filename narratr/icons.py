@@ -174,11 +174,15 @@ def problems(spec: dict[str, Any]) -> list[str]:
 	silently fell back to no icon would degrade one slide in a long video and
 	be found on playback, which is the failure this whole design avoids.
 	"""
-	wanted = {
-		name: scene["id"]
-		for scene in spec.get("scenes", [])
-		for name in [*names_in(scene), *mermaid_names_in(scene)]
-	}
+	# Keyed by name but collecting every scene that asks for it. Keying to a
+	# single id meant three scenes sharing a typo reported only the last one,
+	# so the user fixed it and re-ran into the same error twice more.
+	wanted: dict[str, list[str]] = {}
+	for scene in spec.get("scenes", []):
+		for name in [*names_in(scene), *mermaid_names_in(scene)]:
+			where = wanted.setdefault(name, [])
+			if scene["id"] not in where:
+				where.append(scene["id"])
 	if not wanted:
 		return []
 
@@ -186,10 +190,11 @@ def problems(spec: dict[str, Any]) -> list[str]:
 		return [f"icons: pack not installed -- run 'npm install' in {PACK.parent.parent}"]
 
 	found: list[str] = []
-	for name, scene_id in sorted(wanted.items()):
+	for name, scene_ids in sorted(wanted.items()):
 		if name in available():
 			continue
 		near = suggest(name)
 		hint = f" -- did you mean {', '.join(near)}?" if near else ""
-		found.append(f"icons: '{name}' in scene '{scene_id}' is not a Lucide icon{hint}")
+		named = ", ".join(f"'{sid}'" for sid in scene_ids)
+		found.append(f"icons: '{name}' in scene {named} is not a Lucide icon{hint}")
 	return found

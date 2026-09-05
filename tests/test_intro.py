@@ -11,7 +11,7 @@ from narratr import intro
 
 def test_length_is_a_whole_number_of_frames(monkeypatch):
 	# The sting is 4.101219s; the card must be what the renderer can produce.
-	monkeypatch.setattr(intro.stitch, "probe_duration", lambda path: 4.101219)
+	monkeypatch.setattr(intro.media, "probe_duration", lambda path: 4.101219)
 	# Exactly 123 frames: not 4.1s, which is not a frame boundary at all.
 	assert intro.duration() == 123 / 30
 
@@ -47,9 +47,26 @@ def test_the_sting_is_attenuated():
 
 
 def test_layout_is_read_from_the_reference(monkeypatch):
+	"""The card is concatenated with the narration under -c copy, which refuses
+	streams whose parameters differ, so the layout comes from the narration
+	rather than from a hardcoded 24 kHz mono."""
+	from narratr import media
+
 	monkeypatch.setattr(
-		intro.subprocess,
-		"run",
-		lambda *a, **k: type("R", (), {"stdout": "24000,1\n"})(),
+		media,
+		"_run",
+		lambda *a, **k: type("R", (), {"stdout": "24000,1\n", "returncode": 0})(),
 	)
-	assert intro.audio_layout(Path("whatever.wav")) == (24000, 1)
+	assert media.audio_layout(Path("whatever.wav")) == (24000, 1)
+
+
+def test_an_unreadable_layout_is_an_error_not_a_traceback(monkeypatch):
+	from narratr import media
+
+	monkeypatch.setattr(
+		media,
+		"_run",
+		lambda *a, **k: type("R", (), {"stdout": "N/A\n", "returncode": 0})(),
+	)
+	with pytest.raises(media.MediaError, match="audio layout"):
+		media.audio_layout(Path("whatever.wav"))

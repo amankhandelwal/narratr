@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from narratr.stitch import SILENCE_DB, StitchError, check_audible, parse_mean_volume
+from narratr.media import SILENCE_DB, MediaError, check_audible, parse_mean_volume
 
 REAL = "[Parsed_volumedetect_0 @ 0x7f8] mean_volume: -27.1 dB\nmax_volume: -2.3 dB"
 SILENT = "[Parsed_volumedetect_0 @ 0x7f8] mean_volume: -91.0 dB\nmax_volume: -91.0 dB"
@@ -30,17 +30,17 @@ def test_threshold_separates_the_two_cases():
 
 
 def test_check_raises_on_silence(monkeypatch):
-	monkeypatch.setattr("narratr.stitch.mean_volume", lambda _: -91.0)
-	with pytest.raises(StitchError, match="silent"):
+	monkeypatch.setattr("narratr.media.mean_volume", lambda _: -91.0)
+	with pytest.raises(MediaError, match="silent"):
 		check_audible(Path("scene.wav"), "the-flow")
 
 
 def test_check_passes_on_real_audio(monkeypatch):
-	monkeypatch.setattr("narratr.stitch.mean_volume", lambda _: -27.1)
+	monkeypatch.setattr("narratr.media.mean_volume", lambda _: -27.1)
 	check_audible(Path("scene.mp4"), "the-flow")
 
 
 def test_check_raises_when_unmeasurable(monkeypatch):
-	monkeypatch.setattr("narratr.stitch.mean_volume", lambda _: None)
-	with pytest.raises(StitchError, match="could not measure"):
+	monkeypatch.setattr("narratr.media.mean_volume", lambda _: None)
+	with pytest.raises(MediaError, match="could not measure"):
 		check_audible(Path("scene.wav"), "the-flow")

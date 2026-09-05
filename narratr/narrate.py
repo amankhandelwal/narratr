@@ -26,12 +26,20 @@ def _resolve_voice(spec: dict[str, Any]) -> Path:
 			"no voice.reference in scenes.json. Chatterbox Turbo has no built-in "
 			"voice, so point it at a 10s clip or one of the samples in assets/voices/"
 		)
+	# Resolved and contained. `reference` comes from an LLM-written scenes.json,
+	# and an unconstrained path here read any file on the machine as a voice
+	# prompt -- and told you, by its error, whether that file existed.
 	path = Path(reference)
 	if not path.is_absolute():
 		path = ROOT / path
-	if not path.exists():
-		raise NarrationError(f"voice reference not found: {path}")
-	return path
+	resolved = path.resolve()
+	if not resolved.is_relative_to(ROOT.resolve()):
+		raise NarrationError(
+			f"voice.reference must stay inside the project: {reference!r} resolves outside {ROOT}"
+		)
+	if not resolved.is_file():
+		raise NarrationError(f"voice reference not found: {reference}")
+	return resolved
 
 
 def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:

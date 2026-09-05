@@ -10,10 +10,11 @@ audio actually ships.
 
 from __future__ import annotations
 
-import subprocess
+import shutil
 from pathlib import Path
 from typing import Any
 
+from narratr.media import MediaError, ffmpeg
 from narratr.paths import STORE
 from narratr.state import Manifest
 
@@ -26,7 +27,7 @@ MAX_TEMPO = 2.0
 DEFAULT_SPEED = 0.92
 
 
-class SpeedError(Exception):
+class SpeedError(MediaError):
 	"""The requested speed cannot be applied."""
 
 
@@ -53,33 +54,33 @@ def tempo_chain(speed: float) -> str:
 def apply(src: Path, speed: float, out: Path) -> None:
 	"""Resample to `speed` without shifting pitch."""
 	tmp = out.with_name(f".{out.name}.partial.wav")
-	result = subprocess.run(
-		[
-			"ffmpeg",
-			"-y",
-			"-v",
-			"error",
-			"-i",
-			str(src),
-			"-filter:a",
-			tempo_chain(speed),
-			"-c:a",
-			"pcm_f32le",
-			str(tmp),
-		],
-		capture_output=True,
-		text=True,
-	)
-	if result.returncode != 0:
-		tail = (result.stderr or result.stdout).strip().splitlines()[-4:]
-		raise SpeedError("tempo failed:\n  " + "\n  ".join(tail))
-	tmp.rename(out)
+	try:
+		ffmpeg(
+			[
+				"-i",
+				str(src),
+				"-filter:a",
+				tempo_chain(speed),
+				"-c:a",
+				"pcm_f32le",
+				str(tmp),
+			],
+			"tempo",
+		)
+		tmp.rename(out)
+	finally:
+		tmp.unlink(missing_ok=True)
 
 
 def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	todo = manifest.pending("speech")
 	if not todo:
+		print("speed: nothing to do")
 		return
+
+	missing = [sid for sid in todo if not manifest.data["scenes"][sid].get("audio")]
+	if missing:
+		raise SpeedError(f"no narration yet for {', '.join(missing[:3])}; run narration first")
 
 	speed = float(spec.get("voice", {}).get("speed", DEFAULT_SPEED))
 	speech_dir = STORE / "speech"
@@ -90,22 +91,31 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 		entry = manifest.data["scenes"][scene_id]
 		source = STORE / "audio" / entry["audio"]
 
-		if speed == 1.0:
-			# Nothing to do: point at the narration itself rather than copying
-			# it and losing a little quality to a pointless resample.
-			manifest.mark(scene_id, "speech", f"../audio/{entry['audio']}")
-			continue
-
 		out = speech_dir / f"{entry['speech_key']}.wav"
 		if not out.exists():
-			apply(source, speed, out)
+			if speed == 1.0:
+				# No resample to do, but the artifact still has to exist under
+				# its own key. The manifest used to hold "../audio/<name>.wav"
+				# here -- one field carrying a bare filename at every other
+				# speed and a traversing path at this one, which is why
+				# `path_for` needed a `.resolve()` and why the manifest's
+				# existence check only worked when store/speech happened to be
+				# there. A hardlink costs nothing and keeps the field one type.
+				try:
+					out.hardlink_to(source)
+				except OSError:
+					shutil.copy(source, out)
+			else:
+				apply(source, speed, out)
 			made += 1
 		manifest.mark(scene_id, "speech", out.name)
 
 	if made:
 		print(f"✓ speed: {made} scene(s) at {speed}x")
+	else:
+		print("speed: nothing to do")
 
 
 def path_for(entry: dict[str, Any]) -> Path:
 	"""Where a scene's shipping audio lives, tempo applied or not."""
-	return (STORE / "speech" / entry["speech"]).resolve()
+	return STORE / "speech" / entry["speech"]

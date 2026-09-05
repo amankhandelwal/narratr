@@ -145,12 +145,14 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 
 	if not todo:
 		print("align: nothing to do")
-		write_captions(spec, manifest, run_dir)
 		return
 
-	missing = [sid for sid in todo if not manifest.data["scenes"][sid].get("audio")]
+	# `speed.path_for` reads the speech artifact, so that is what must exist.
+	missing = [sid for sid in todo if not manifest.data["scenes"][sid].get("speech")]
 	if missing:
-		raise AlignmentError(f"no audio yet for {', '.join(missing[:3])}; run narration first")
+		raise AlignmentError(
+			f"no timed audio yet for {', '.join(missing[:3])}; run narration and speed first"
+		)
 
 	# Imported here, as in narrate: doctor should not pay for torch.
 	import torchaudio
@@ -197,8 +199,6 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	if spoken:
 		print(f"✓ align: {spoken:.0f}s audio in {elapsed:.0f}s (rtf {elapsed / spoken:.2f})")
 
-	write_captions(spec, manifest, run_dir)
-
 
 def write_captions(
 	spec: dict[str, Any],
@@ -215,6 +215,11 @@ def write_captions(
 
 	`offset` is where the first scene starts, which is the length of the title
 	card. Without it every cue would be four seconds early for the whole video.
+
+	Only `stitch` calls this. `align` used to call it as well, with no offset
+	and no measured durations, writing a captions file that was wrong in both
+	ways and then overwritten -- except when stitch never ran, which is every
+	`--only` run.
 	"""
 	timings_dir = STORE / "timings"
 	cues: list[dict[str, Any]] = []

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from narratr.stitch import chapter_metadata
+from narratr.chapters import metadata as chapter_metadata
 
 SPEC = {
 	"scenes": [

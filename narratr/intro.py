@@ -13,14 +13,12 @@ the card.
 
 from __future__ import annotations
 
-import hashlib
 import json
-import subprocess
 from pathlib import Path
 
-from narratr import stitch
+from narratr import media
 from narratr.paths import ROOT, STORE
-from narratr.state import digest, renderer_digest
+from narratr.state import digest, file_digest, renderer_digest
 
 MUSIC = ROOT / "assets" / "intro.mp3"
 MARK = ROOT / "render" / "remotion" / "public" / "narratr-mark.png"
@@ -36,39 +34,6 @@ class IntroError(Exception):
 	"""The title card cannot be built."""
 
 
-def file_digest(path: Path) -> str:
-	"""Content hash of a binary asset. The mark and the sting are not text."""
-	return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
-
-
-def audio_layout(reference: Path) -> tuple[int, int]:
-	"""The sample rate and channel count of an already-padded scene.
-
-	The card's audio is concatenated with the narration under `-c copy`, which
-	refuses streams whose parameters differ. Rather than hardcode Chatterbox's
-	24 kHz mono, take it from what the narration actually turned out to be.
-	"""
-	out = subprocess.run(
-		[
-			"ffprobe",
-			"-v",
-			"error",
-			"-select_streams",
-			"a:0",
-			"-show_entries",
-			"stream=sample_rate,channels",
-			"-of",
-			"csv=p=0",
-			str(reference),
-		],
-		capture_output=True,
-		text=True,
-		check=True,
-	)
-	rate, channels = out.stdout.strip().split(",")
-	return int(rate), int(channels)
-
-
 def key(title: str, rate: int, channels: int) -> str:
 	return digest(
 		[
@@ -77,7 +42,7 @@ def key(title: str, rate: int, channels: int) -> str:
 			file_digest(MUSIC),
 			file_digest(MARK),
 			GAIN_DB,
-			stitch.FPS,
+			media.FPS,
 			rate,
 			channels,
 			# This module builds the ffmpeg and Remotion commands, so its own
@@ -89,7 +54,7 @@ def key(title: str, rate: int, channels: int) -> str:
 
 def duration() -> float:
 	"""How long the card runs: the sting's own length, rounded to a frame."""
-	return stitch.frame_aligned(stitch.probe_duration(MUSIC))
+	return media.frame_aligned(media.probe_duration(MUSIC))
 
 
 def build(title: str, reference: Path) -> tuple[Path, Path, float]:
@@ -98,7 +63,7 @@ def build(title: str, reference: Path) -> tuple[Path, Path, float]:
 		if not asset.exists():
 			raise IntroError(f"missing intro asset: {asset.relative_to(ROOT)}")
 
-	rate, channels = audio_layout(reference)
+	rate, channels = media.audio_layout(reference)
 	seconds = duration()
 	intro_key = key(title, rate, channels)
 
@@ -111,7 +76,7 @@ def build(title: str, reference: Path) -> tuple[Path, Path, float]:
 		tmp = audio.with_name(f".{audio.name}.partial.wav")
 		# apad then -t: the sting decays to silence on its own by 3.8s, so what
 		# this adds is padding to the frame boundary, not a fade.
-		stitch.ffmpeg(
+		media.ffmpeg(
 			[
 				"-i",
 				str(MUSIC),
@@ -142,6 +107,7 @@ def build(title: str, reference: Path) -> tuple[Path, Path, float]:
 		run_remotion(
 			[
 				"npx",
+				"--no-install",
 				"remotion",
 				"render",
 				"src/index.ts",
@@ -157,7 +123,7 @@ def build(title: str, reference: Path) -> tuple[Path, Path, float]:
 		# Same reason as every scene: Remotion writes a silent AAC track whose
 		# encoder padding makes it longer than its own picture, and concat
 		# advances by container duration.
-		stitch.strip_audio(rendered, video)
+		media.strip_audio(rendered, video)
 		rendered.unlink(missing_ok=True)
 
 	return video, audio, seconds
