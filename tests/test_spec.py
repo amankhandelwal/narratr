@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from narratr.spec import summarise, validate
-from narratr.state import audio_key, run_id_for, video_key
+from narratr.state import audio_key, run_dir_name, video_key
 
 EXAMPLE = Path(__file__).resolve().parent.parent / "examples" / "scenes.json"
 
@@ -84,8 +84,23 @@ def test_editing_narration_invalidates_both():
 	assert video_key(scene, spec) != video_before
 
 
-def test_run_id_is_stable():
-	assert run_id_for(load()) == run_id_for(load())
+def test_run_dir_name_reads_like_a_folder_a_person_named():
+	from datetime import datetime
+
+	name = run_dir_name(load(), datetime(2026, 9, 5, 13, 22))
+	assert name == "Audio-first video generation [05-09 01:22 PM]"
+
+
+def test_run_dir_name_never_contains_a_path_separator():
+	"""A slash is a path separator: mkdir would silently nest the directory
+	instead of failing, which is how this was nearly shipped."""
+	spec = {"source": {"title": "reports/2026: draft"}}
+	assert "/" not in run_dir_name(spec)
+	assert ":" not in run_dir_name(spec).split("[")[0]
+
+
+def test_run_dir_name_falls_back_when_the_title_is_empty():
+	assert run_dir_name({"source": {"title": "   "}}).startswith("untitled [")
 
 
 def test_summarise_mentions_scene_count():

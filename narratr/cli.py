@@ -15,7 +15,7 @@ from pathlib import Path
 from narratr import align, blocks, doctor, narrate, render, stitch
 from narratr.paths import RUNS
 from narratr.spec import SpecError, load_spec, summarise, validate
-from narratr.state import Manifest, run_id_for
+from narratr.state import Manifest, run_dir_name
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -66,9 +66,7 @@ def cmd_render(args: argparse.Namespace) -> int:
 		print(f"  available: {', '.join(sorted(known))}")
 		return 1
 
-	# The run id comes from the whole spec even when rendering a subset, so a
-	# later full run picks up the work rather than starting a new run.
-	run_id = run_id_for(spec)
+	run_id = args.run_name or run_dir_name(spec)
 	run_dir = RUNS / run_id
 	run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -77,6 +75,7 @@ def cmd_render(args: argparse.Namespace) -> int:
 		# the descriptor, so closing our handle here does not affect the child.
 		with open(run_dir / "run.log", "a") as log:
 			forwarded = [arg for sid in (args.only or []) for arg in ("--only", sid)]
+			forwarded += ["--run-name", run_id]
 			subprocess.Popen(
 				[
 					sys.executable,
@@ -90,14 +89,14 @@ def cmd_render(args: argparse.Namespace) -> int:
 				stderr=subprocess.STDOUT,
 				start_new_session=True,
 			)
-		print(f"✓ Run {run_id} started in background")
-		print(f"  narratr status {run_id}")
+		print(f"✓ Run started in background: {run_id}")
+		print("  narratr status")
 		return 0
 
 	shutil.copy(args.scenes, run_dir / "scenes.json")
 	manifest = Manifest.load_or_create(run_dir, spec, run_id)
 	manifest.restrict(args.only)
-	print(f"run {run_id}: {spec['source']['title']}")
+	print(f"run: {run_id}")
 	if args.only:
 		print(f"  only: {', '.join(args.only)}")
 
@@ -122,23 +121,48 @@ def cmd_render(args: argparse.Namespace) -> int:
 	return 0
 
 
+def resolve_run(name: str | None) -> Path | None:
+	"""Find a run by exact name, unique prefix, or default to the newest.
+
+	Run directories are named for people now, which means they have spaces in
+	them. Defaulting to the newest saves quoting one most of the time.
+	"""
+	runs = sorted(
+		(d for d in RUNS.glob("*") if (d / "manifest.json").exists()),
+		key=lambda d: d.stat().st_mtime,
+		reverse=True,
+	)
+	if not name:
+		return runs[0] if runs else None
+	exact = RUNS / name
+	if (exact / "manifest.json").exists():
+		return exact
+	# runs is newest-first, so an ambiguous prefix resolves to the latest run
+	# of that name -- which is what "show me how the brief is doing" means.
+	matches = [d for d in runs if d.name.startswith(name)]
+	return matches[0] if matches else None
+
+
 def cmd_status(args: argparse.Namespace) -> int:
-	manifest_path = RUNS / args.run_id / "manifest.json"
-	if not manifest_path.exists():
-		print(f"❌ No such run: {args.run_id}", file=sys.stderr)
+	run_dir = resolve_run(args.run_id)
+	if run_dir is None:
+		print(
+			f"❌ No such run: {args.run_id}" if args.run_id else "❌ No runs yet", file=sys.stderr
+		)
 		return 1
+	manifest_path = run_dir / "manifest.json"
 
 	data = json.loads(manifest_path.read_text())
 	scenes = data["scenes"]
 	done = sum(1 for s in scenes.values() if s.get("audio"))
 
-	print(f"run {data['run_id']}: {data['title']}")
+	print(f"run {run_dir.name}")
 	print(f"  audio   {done}/{len(scenes)} scenes")
 	if done < len(scenes):
 		pending = sorted(sid for sid, s in scenes.items() if not s.get("audio"))
 		print(f"  pending {', '.join(pending[:5])}")
 
-	log = RUNS / args.run_id / "run.log"
+	log = run_dir / "run.log"
 	if log.exists():
 		tail = log.read_text().strip().splitlines()
 		if tail:
@@ -167,6 +191,10 @@ def build_parser() -> argparse.ArgumentParser:
 		help="run in the background; survives this session ending",
 	)
 	render_cmd.add_argument(
+		"--run-name",
+		help=argparse.SUPPRESS,  # internal: keeps a detached child in one directory
+	)
+	render_cmd.add_argument(
 		"--only",
 		action="append",
 		metavar="SCENE_ID",
@@ -174,7 +202,7 @@ def build_parser() -> argparse.ArgumentParser:
 	)
 
 	status_cmd = sub.add_parser("status", help="progress of a run")
-	status_cmd.add_argument("run_id")
+	status_cmd.add_argument("run_id", nargs="?", help="name or prefix; defaults to the newest")
 
 	return parser
 

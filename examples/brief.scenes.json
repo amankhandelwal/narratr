@@ -98,9 +98,9 @@
       "bullets": [
         "Voice works",
         "Runs resume",
-        "Renderer not built"
+        "Edits are cheap"
       ],
-      "narration": "As things stand, the narration works and has been measured. Runs checkpoint after every scene, so a closed laptop lid costs you ninety seconds rather than the afternoon. The renderer does not exist yet. That is the next piece."
+      "narration": "As things stand, the whole pipeline works. Runs checkpoint after every scene, so a closed laptop lid costs you ninety seconds rather than the afternoon. And because everything is cached by content, editing one slide costs seconds rather than a rebuild."
     }
   ]
 }

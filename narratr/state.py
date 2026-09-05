@@ -10,7 +10,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import time
+from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -73,9 +75,24 @@ def video_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 	)
 
 
-def run_id_for(spec: dict[str, Any]) -> str:
-	"""Stable id for a spec, so re-running the same input resumes it."""
-	return hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest()[:12]
+# A run directory is named for a human reading `ls`, not for a machine. It no
+# longer needs to be derived from the spec: artifacts live in the content-keyed
+# store, so a fresh directory still reuses everything already made.
+UNSAFE = re.compile(r"[/\\:\x00-\x1f]+")
+
+
+def run_dir_name(spec: dict[str, Any], when: datetime | None = None) -> str:
+	"""`<title> [DD-MM HH:MM AM/PM]`.
+
+	A slash would be read as a path separator and silently nest the directory,
+	so the date is dash-separated.
+	"""
+	# Collapse whitespace first: a newline is whitespace, and substituting it as
+	# an unsafe character would leave a dash mid-title.
+	title = " ".join(str(spec.get("source", {}).get("title", "untitled")).split())
+	title = UNSAFE.sub("-", title)[:60].strip() or "untitled"
+	stamp = (when or datetime.now()).strftime("%d-%m %I:%M %p")
+	return f"{title} [{stamp}]"
 
 
 class Manifest:

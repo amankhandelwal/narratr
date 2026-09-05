@@ -64,7 +64,7 @@ before spending any compute.
 uv run narratr doctor                        # is this machine ready
 uv run narratr validate scenes.json          # schema + coverage, costs nothing
 uv run narratr render scenes.json --detach   # returns a run id in ~1s
-uv run narratr status <run-id>               # progress
+uv run narratr status                        # progress of the newest run
 uv run narratr blocks <doc> --json           # leaf block ids for the ledger
 ```
 
@@ -85,6 +85,9 @@ uv run narratr render scenes.json --only the-flow
 ```
 
 Repeatable, and it skips stitching so `video.mp4` is never left partial.
+
+Runs land in `runs/<title> [DD-MM HH:MM AM/PM]/`. `narratr status` takes a name
+or any prefix of one, and defaults to the most recent run.
 
 `--detach` survives the terminal closing, the parent shell exiting, and the
 Claude session ending. Runs are checkpointed per scene, so an interruption
