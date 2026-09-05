@@ -3,21 +3,39 @@
   "title": "narratr scenes",
   "description": "The contract between Claude and the renderer. Claude produces this; every stage after it is deterministic.",
   "type": "object",
-  "required": ["version", "source", "coverage", "scenes"],
+  "required": [
+    "version",
+    "source",
+    "coverage",
+    "scenes"
+  ],
   "additionalProperties": false,
   "properties": {
-    "version": { "const": 1 },
+    "version": {
+      "const": 1
+    },
     "source": {
       "type": "object",
-      "required": ["title", "block_ids"],
+      "required": [
+        "title",
+        "block_ids"
+      ],
       "additionalProperties": false,
       "properties": {
-        "title": { "type": "string", "minLength": 1 },
-        "origin": { "type": "string", "description": "notion url, file path, or 'inline'" },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "origin": {
+          "type": "string",
+          "description": "notion url, file path, or 'inline'"
+        },
         "block_ids": {
           "type": "array",
           "description": "Every leaf block in the source document. Pass 1 must map all of them.",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "minItems": 1
         }
       }
@@ -25,14 +43,21 @@
     "coverage": {
       "type": "object",
       "description": "block_id -> scene_id. Validated as a hard gate before any compute is spent.",
-      "additionalProperties": { "type": "string" }
+      "additionalProperties": {
+        "type": "string"
+      }
     },
     "voice": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "reference": { "type": "string", "description": "path to a 10s reference clip" },
-        "seed": { "type": "integer" },
+        "reference": {
+          "type": "string",
+          "description": "path to a 10s reference clip"
+        },
+        "seed": {
+          "type": "integer"
+        },
         "speed": {
           "type": "number",
           "exclusiveMinimum": 0,
@@ -47,31 +72,165 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["id", "type", "narration"],
+        "required": [
+          "id",
+          "type",
+          "narration"
+        ],
         "additionalProperties": false,
         "properties": {
-          "id": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
-          "type": { "enum": ["prose", "diagram", "code"] },
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]+$"
+          },
+          "type": {
+            "enum": [
+              "prose",
+              "diagram",
+              "code",
+              "flow",
+              "cards"
+            ]
+          },
           "narration": {
             "type": "string",
             "minLength": 1,
             "description": "Spoken text. This is the master clock: its rendered duration sets the scene length."
           },
-          "heading": { "type": "string" },
+          "heading": {
+            "type": "string"
+          },
           "bullets": {
             "type": "array",
-            "items": { "type": "string" },
             "maxItems": 6,
-            "description": "Fragments, never sentences. Six objects max per slide."
+            "description": "Fragments, never sentences. Six objects max per slide. A plain string is a bullet with no icon.",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "text"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "icon": {
+                      "type": "string",
+                      "description": "Lucide icon name, kebab-case. Validated before any compute."
+                    },
+                    "state": {
+                      "enum": [
+                        "struck"
+                      ],
+                      "description": "struck: the approach being rejected. Dimmed with a line through it."
+                    },
+                    "cue": {
+                      "type": "string",
+                      "description": "Reserved. Verbatim phrase from this scene's narration; not yet resolved."
+                    }
+                  }
+                }
+              ]
+            }
           },
-          "mermaid": { "type": "string", "description": "diagram scenes only" },
+          "mermaid": {
+            "type": "string",
+            "description": "diagram scenes only"
+          },
           "revealSteps": {
             "type": "array",
             "description": "Groups of SVG node ids revealed as beats across the scene.",
-            "items": { "type": "array", "items": { "type": "string" } }
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           },
-          "code": { "type": "string" },
-          "lang": { "type": "string" }
+          "code": {
+            "type": "string"
+          },
+          "lang": {
+            "type": "string"
+          },
+          "steps": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 5,
+            "description": "flow scenes. A sequence, revealed one step at a time. Beyond five steps it is a diagram.",
+            "items": {
+              "type": "object",
+              "required": [
+                "icon",
+                "label"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "icon": {
+                  "type": "string",
+                  "description": "Lucide icon name, kebab-case."
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "A word or two under the icon."
+                }
+              }
+            }
+          },
+          "footer": {
+            "type": "object",
+            "required": [
+              "icon",
+              "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "icon": {
+                "type": "string",
+                "description": "Lucide icon name, kebab-case."
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "description": "A word or two under the icon."
+              }
+            },
+            "description": "flow scenes. The condition holding across every step, shown below the chain."
+          },
+          "cards": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "description": "cards scenes. Parallel things side by side, revealed one at a time.",
+            "items": {
+              "type": "object",
+              "required": [
+                "title"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "icon": {
+                  "type": "string",
+                  "description": "Lucide icon name, kebab-case."
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "detail": {
+                  "type": "string",
+                  "description": "One short line. Never a sentence."
+                }
+              }
+            }
+          }
         }
       }
     }

@@ -44,7 +44,18 @@ def audio_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 
 # Everything that changes what a frame looks like. Narration is in here via the
 # audio key, because the scene's length comes from it.
-VISUAL_FIELDS = ("type", "heading", "bullets", "mermaid", "revealSteps", "code", "lang")
+VISUAL_FIELDS = (
+	"type",
+	"heading",
+	"bullets",
+	"mermaid",
+	"revealSteps",
+	"code",
+	"lang",
+	"steps",
+	"footer",
+	"cards",
+)
 
 # The renderer's own source counts as an input. Without this, changing a colour
 # or a layout leaves every cached video stale and the pipeline reports nothing
@@ -56,6 +67,11 @@ RENDERER_SOURCES = (
 	"render/remotion/src",
 	"render/remotion/mermaid.config.json",
 	"narratr/render.py",
+	# The renderer's npm dependencies shape frames as surely as its components
+	# do -- Lucide draws the icons, Mermaid draws the diagrams. Without this,
+	# bumping either leaves every cached video holding the old glyphs and the
+	# pipeline reporting nothing to do.
+	"render/remotion/package.json",
 )
 
 

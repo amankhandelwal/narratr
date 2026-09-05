@@ -13,6 +13,7 @@ from typing import Any
 
 import jsonschema
 
+from narratr import icons
 from narratr.paths import SCHEMA
 
 
@@ -50,6 +51,10 @@ def validate(spec: dict[str, Any]) -> list[str]:
 	for block, sid in sorted(coverage.items()):
 		if sid not in scene_ids:
 			problems.append(f"coverage: block '{block}' maps to unknown scene '{sid}'")
+
+	# Icon names are Claude's to invent, so they are checked here rather than
+	# discovered on playback. Same reason the coverage gate exists.
+	problems += icons.problems(spec)
 
 	return problems
 

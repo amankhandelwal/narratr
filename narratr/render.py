@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from narratr import speed
+from narratr import icons, speed
 from narratr.paths import ROOT, STORE
 from narratr.state import Manifest
 
@@ -94,8 +94,18 @@ def _props_for(
 		"durationInSeconds": duration,
 		"heading": scene.get("heading"),
 	}
+	# Icons resolve here, like Mermaid and Shiki, so the component stays
+	# synchronous. Keyed by name because a scene may use one twice.
+	wanted = icons.names_in(scene)
+	if wanted:
+		props["icons"] = {name: icons.markup(name) for name in dict.fromkeys(wanted)}
 	if scene["type"] == "prose":
 		props["bullets"] = scene.get("bullets", [])
+	elif scene["type"] == "flow":
+		props["steps"] = scene.get("steps", [])
+		props["footer"] = scene.get("footer")
+	elif scene["type"] == "cards":
+		props["cards"] = scene.get("cards", [])
 	elif scene["type"] == "diagram":
 		svg_path = assets / f"{key}.svg"
 		props["svg"] = mermaid_to_svg(scene["mermaid"], svg_path)

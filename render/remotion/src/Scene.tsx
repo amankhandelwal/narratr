@@ -1,7 +1,9 @@
 import React from "react";
+import { Cards, type Card } from "./Cards";
 import { Code } from "./Code";
 import { Diagram } from "./Diagram";
-import { Prose } from "./Prose";
+import { Flow, type Step } from "./Flow";
+import { Prose, type Bullet } from "./Prose";
 
 /**
  * One scene from scenes.json, plus the duration measured from its audio.
@@ -10,16 +12,21 @@ import { Prose } from "./Prose";
  * never asks for more. See ../CONTRACT.md.
  */
 export type SceneProps = {
-	type: "prose" | "diagram" | "code";
+	type: "prose" | "diagram" | "code" | "flow" | "cards";
 	durationInSeconds: number;
 	heading?: string;
-	bullets?: string[];
+	bullets?: Bullet[];
 	svg?: string;
 	revealSteps?: string[][];
 	code?: string;
 	lang?: string;
 	/** Shiki output for code scenes, highlighted ahead of render time. */
 	html?: string;
+	steps?: Step[];
+	footer?: Step;
+	cards?: Card[];
+	/** Lucide markup by name, resolved ahead of render time. */
+	icons?: Record<string, string>;
 };
 
 export const Scene: React.FC<SceneProps> = (props) => {
@@ -42,5 +49,24 @@ export const Scene: React.FC<SceneProps> = (props) => {
 			/>
 		);
 	}
-	return <Prose heading={props.heading ?? ""} bullets={props.bullets ?? []} />;
+	if (props.type === "flow") {
+		return (
+			<Flow
+				heading={props.heading}
+				steps={props.steps ?? []}
+				footer={props.footer}
+				icons={props.icons}
+			/>
+		);
+	}
+	if (props.type === "cards") {
+		return <Cards heading={props.heading} cards={props.cards ?? []} icons={props.icons} />;
+	}
+	return (
+		<Prose
+			heading={props.heading ?? ""}
+			bullets={props.bullets ?? []}
+			icons={props.icons}
+		/>
+	);
 };

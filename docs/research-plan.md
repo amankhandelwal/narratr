@@ -188,7 +188,15 @@ flowchart TD
 
 **Palette.** Dark slate ground from [archify](https://github.com/tt-a1i/archify) — `#020617` with `#94a3b8` for secondary text and six 400-level accents. Colour separates rather than decorates: one accent per bullet so the eye tracks the reveal, and a rotation across diagram nodes keyed to the reveal beat, so nodes that arrive together share a colour.
 
-**Diagram animation, concretely.** Mermaid emits an SVG where every node is `g.node[id]` and every edge is `g.edgePath`. Claude emits a `revealSteps` array grouping those ids into beats. Remotion interpolates opacity per group across the scene's duration. No third-party service.
+**Five shapes, not one.** A sequence, a comparison and a list of properties were all rendering as the same vertical stack, which is why every slide looked alike. The renderer now has `flow` for sequences and `cards` for parallel things alongside `prose`, `diagram` and `code`, and `skill/SKILL.md` chooses between them by the shape of the content. The judgement is the skill's; the renderer only makes each shape possible.
+
+**Icons are Lucide, resolved before the render.** ISC licensed, ~2,000 glyphs, stroke-based on a 24px grid and drawn with `currentColor`, so a glyph inherits `accent(i)` rather than fighting the palette. They resolve in `narratr/icons.py` and arrive as markup in props, the same path Mermaid and Shiki already take, which keeps the component synchronous. The accent bar on a bullet is gone — the icon took its place and its colour, because a coloured bar names nothing.
+
+An icon name is invented by Claude, so it is validated in `narratr validate` with near misses, alongside the coverage gate. A name that silently fell back to no icon would degrade one slide in a long video and be found on playback. `narratr icons <word>` searches the pack so the skill looks a name up rather than guessing twice.
+
+**The npm dependencies are part of the render key.** Lucide draws the icons and Mermaid draws the diagrams, so `render/remotion/package.json` joined `RENDERER_SOURCES`. Without it, bumping either left every cached video holding the old glyphs while the pipeline reported nothing to do — the third instance of that same bug.
+
+**Diagram animation, concretely.** Mermaid emits an SVG where every node carries `id="<prefix>-flowchart-<ID>-<n>"` and every edge a `data-id`. The node *class* is deliberately not matched: Mermaid writes `node default` for a plain node and `icon-shape default` for one carrying an icon, so a `g.node` selector stops animating the moment a diagram uses icons — and an unmatched node falls back to visible, which every structural check passes. Claude emits a `revealSteps` array grouping those ids into beats. Remotion interpolates opacity per group across the scene's duration. No third-party service.
 
 **Render per scene, concat after.** Remotion slows down on very long single compositions, so scene-sized renders are the safe unit regardless of total length. Per-scene output is also what makes a run resumable and what lets a single edited scene re-render alone.
 

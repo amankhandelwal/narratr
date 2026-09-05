@@ -1,14 +1,22 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
+import { Icon, IconStyles } from "./Icon";
 import { accent, beatAt, theme } from "./theme";
+
+/** A bullet is a plain string, or a fragment carrying an icon and a state. */
+export type Bullet = string | { text: string; icon?: string; state?: "struck" };
 
 export type ProseProps = {
 	heading: string;
-	bullets: string[];
+	bullets: Bullet[];
+	icons?: Record<string, string>;
 };
 
+const asFragment = (bullet: Bullet) =>
+	typeof bullet === "string" ? { text: bullet } : bullet;
+
 /** Heading plus up to six fragments, revealed one beat at a time. */
-export const Prose: React.FC<ProseProps> = ({ heading, bullets }) => {
+export const Prose: React.FC<ProseProps> = ({ heading, bullets, icons }) => {
 	const frame = useCurrentFrame();
 	const { durationInFrames } = useVideoConfig();
 
@@ -24,6 +32,10 @@ export const Prose: React.FC<ProseProps> = ({ heading, bullets }) => {
 			extrapolateRight: "clamp",
 		});
 
+	// One bullet without an icon must not pull its text left of the others, so
+	// the gutter is reserved for the whole list as soon as any bullet uses it.
+	const gutter = bullets.some((bullet) => asFragment(bullet).icon) ? 62 : 0;
+
 	return (
 		<AbsoluteFill
 			style={{
@@ -34,35 +46,56 @@ export const Prose: React.FC<ProseProps> = ({ heading, bullets }) => {
 				justifyContent: "center",
 			}}
 		>
+			<IconStyles />
 			{/* Headline small, content big: the headline is rarely the point. */}
 			<div style={{ color: theme.muted, fontSize: 34, opacity: fade(0), marginBottom: 44 }}>
 				{heading}
 			</div>
-			{bullets.map((text, i) => {
+			{bullets.map((bullet, i) => {
+				const { text, icon, state } = asFragment(bullet);
 				const start = beatAt(i + 1, bullets.length + 1, durationInFrames);
+				// Struck fragments are the approach being rejected. Everything
+				// about them recedes -- glyph included -- so the live lines read
+				// first and the rejected ones read as history.
+				const struck = state === "struck";
 				return (
 					<div
 						key={text}
 						style={{
 							display: "flex",
 							alignItems: "center",
-							gap: 28,
+							gap: gutter ? 30 : 0,
 							opacity: fade(start),
 							transform: `translateY(${rise(start)}px)`,
 						}}
 					>
-						{/* A short accent rule rather than a bullet glyph: it marks
-						    the line without competing with the words. */}
+						{gutter > 0 && (
+							<span
+								style={{
+									width: gutter,
+									height: gutter,
+									flexShrink: 0,
+									display: "flex",
+									alignItems: "center",
+								}}
+							>
+								<Icon
+									markup={icon ? icons?.[icon] : undefined}
+									size={gutter}
+									color={struck ? theme.dim : accent(i)}
+									strokeWidth={1.75}
+								/>
+							</span>
+						)}
 						<span
 							style={{
-								width: 10,
-								height: 54,
-								borderRadius: 5,
-								backgroundColor: accent(i),
-								flexShrink: 0,
+								color: struck ? theme.dim : theme.fg,
+								fontSize: 76,
+								lineHeight: 1.35,
+								textDecoration: struck ? "line-through" : undefined,
+								textDecorationThickness: struck ? 3 : undefined,
 							}}
-						/>
-						<span style={{ color: theme.fg, fontSize: 76, lineHeight: 1.35 }}>
+						>
 							{text}
 						</span>
 					</div>

@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from narratr import align, blocks, doctor, narrate, render, speed, stitch
+from narratr import align, blocks, doctor, icons, narrate, render, speed, stitch
 from narratr.paths import RUNS
 from narratr.spec import SpecError, load_spec, summarise, validate
 from narratr.state import Manifest, run_dir_name
@@ -35,6 +35,29 @@ def cmd_blocks(args: argparse.Namespace) -> int:
 		for block in found:
 			print(f"  {block['id']:34} {block['kind']}")
 		print(f"\n{len(found)} leaf blocks")
+	return 0
+
+
+def cmd_icons(args: argparse.Namespace) -> int:
+	"""Search the installed Lucide names.
+
+	The pack has ~2,000 icons. Carrying that list in a skill would cost more
+	context than it is worth, so the skill looks a name up instead of guessing
+	twice.
+	"""
+	if not icons.installed():
+		print(f"❌ Icon pack not installed: run 'npm install' in {icons.PACK.parent.parent}")
+		return 1
+	found = icons.search(args.query)
+	if not found:
+		near = icons.suggest(args.query)
+		print(
+			f"No icon matches '{args.query}'" + (f" -- closest: {', '.join(near)}" if near else "")
+		)
+		return 1
+	for name in found:
+		print(f"  {name}")
+	print(f"\n{len(found)} match(es) of {len(icons.available())} icons")
 	return 0
 
 
@@ -184,6 +207,9 @@ def build_parser() -> argparse.ArgumentParser:
 	blocks_cmd.add_argument("document", type=Path)
 	blocks_cmd.add_argument("--json", action="store_true", help="emit ids as a JSON array")
 
+	icons_cmd = sub.add_parser("icons", help="search Lucide icon names")
+	icons_cmd.add_argument("query", help="word to match against names and Lucide's tags")
+
 	validate_cmd = sub.add_parser("validate", help="schema + coverage check, spends nothing")
 	validate_cmd.add_argument("scenes", type=Path)
 
@@ -216,6 +242,7 @@ def main() -> int:
 	handlers = {
 		"doctor": cmd_doctor,
 		"blocks": cmd_blocks,
+		"icons": cmd_icons,
 		"validate": cmd_validate,
 		"render": cmd_render,
 		"status": cmd_status,

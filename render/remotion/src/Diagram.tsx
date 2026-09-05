@@ -12,9 +12,15 @@ export type DiagramProps = {
 
 // Mermaid's SVG structure is not a public API. Two shapes are load-bearing
 // here, both verified against mermaid-cli output:
-//   nodes: <g class="node ..." id="<prefix>-flowchart-<ID>-<n>">
+//   nodes: <g id="<prefix>-flowchart-<ID>-<n>">
 //   edges: <path class="... flowchart-link" data-id="L_<from>_<to>_<n>">
 // The trailing index is unpredictable, hence prefix matching on the dash.
+//
+// The node class is deliberately NOT matched. Mermaid writes "node default"
+// for a plain node and "icon-shape default" for one carrying an icon, so a
+// `g.node` selector silently stops animating the moment a diagram uses icons
+// -- and an unmatched node falls back to visible, which every structural check
+// passes. The id pattern is the part that holds across both.
 // If either changes, edges and nodes fall back to visible rather than
 // vanishing for the whole scene.
 const EDGE_ID = /data-id="L_(.+?)_(.+?)_\d+"/g;
@@ -52,7 +58,7 @@ export const Diagram: React.FC<DiagramProps> = ({ heading, svg, revealSteps }) =
 
 		revealSteps.forEach((group, beat) => {
 			for (const id of group) {
-				const node = `.diagram g.node[id*="flowchart-${id}-"]`;
+				const node = `.diagram g[id*="flowchart-${id}-"]`;
 				lines.push(`${node} { opacity: ${opacityAt(beat)} }`);
 				// Colour follows the reveal, so each beat is visually distinct
 				// and the eye can tell which nodes arrived together.

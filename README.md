@@ -71,6 +71,7 @@ uv run narratr validate scenes.json          # schema + coverage, costs nothing
 uv run narratr render scenes.json --detach   # returns a run id in ~1s
 uv run narratr status                        # progress of the newest run
 uv run narratr blocks <doc> --json           # leaf block ids for the ledger
+uv run narratr icons <word>                  # search Lucide icon names
 ```
 
 Edits are cheap. Artifacts are content-addressed in a shared `store/`, keyed
@@ -123,6 +124,32 @@ against two and a half minutes.
 
 Chatterbox Turbo has no built-in voice of its own — it speaks only as the
 reference clip, so that clip sets the character of every video.
+
+## Slides
+
+Five scene shapes, chosen by what the content is rather than for variety:
+
+| The content is | Scene type |
+|---|---|
+| Ordered steps, a pipeline | `flow` — icons and labels, revealed left to right |
+| Parallel things compared | `cards` — two to four, side by side |
+| Structure or relationships | `diagram` — Mermaid, revealed in beats |
+| Source code | `code` — Shiki, highlighted ahead of render |
+| Anything else | `prose` — up to six fragments |
+
+Bullets, flow steps and cards carry a [Lucide](https://lucide.dev) icon by name.
+A bullet describing the approach being rejected takes `"state": "struck"` and
+renders dimmed with a line through it.
+
+```sh
+uv run narratr icons clapper     # clapperboard
+```
+
+An icon name that does not exist fails `narratr validate` before any compute,
+with near misses — the same gate that catches a dropped source block.
+
+`skill/SKILL.md` is what actually chooses between the shapes; the renderer only
+makes each one possible.
 
 ## The title card
 
@@ -203,9 +230,10 @@ slower. Check you are on Apple Silicon and that torch installed correctly.
 project. `make reset` does not touch them.
 
 **A change to the renderer seems to do nothing** — video is keyed on the React
-components, `mermaid.config.json` and `narratr/render.py`. Editing anything else
-that affects the picture will reuse the cached video. Add the file to
-`RENDERER_SOURCES` in `narratr/state.py`.
+components, `mermaid.config.json`, `narratr/render.py` and
+`render/remotion/package.json`. Editing anything else that affects the picture
+will reuse the cached video. Add the file to `RENDERER_SOURCES` in
+`narratr/state.py`.
 
 **Everything re-renders after an edit** — expected if you changed narration:
 that invalidates the audio, its timings, and the picture, because a scene's

@@ -28,13 +28,22 @@
   "scenes": [
     {
       "id": "what-it-is",
-      "type": "prose",
+      "type": "flow",
       "heading": "narratr",
-      "bullets": [
-        "Document in",
-        "Narrated video out",
-        "All on your laptop"
+      "steps": [
+        {
+          "icon": "file-text",
+          "label": "Document"
+        },
+        {
+          "icon": "clapperboard",
+          "label": "Narrated video"
+        }
       ],
+      "footer": {
+        "icon": "laptop-minimal",
+        "label": "All on your laptop"
+      },
       "narration": "Narrator turns a document into a narrated video, and it runs entirely on your own machine. You point it at a document, it writes the script, and your laptop does the rest while you get on with something else."
     },
     {
@@ -42,9 +51,20 @@
       "type": "prose",
       "heading": "The usual failure",
       "bullets": [
-        "Slides first",
-        "Narration second",
-        "Drift forever"
+        {
+          "text": "Slides first",
+          "icon": "layout-template",
+          "state": "struck"
+        },
+        {
+          "text": "Narration second",
+          "icon": "mic",
+          "state": "struck"
+        },
+        {
+          "text": "Drift forever",
+          "icon": "triangle-alert"
+        }
       ],
       "narration": "Every project like this fails the same way. You build the slides first, then try to make the narration fit them. The timing drifts, and there is no fixing it, because every edit breaks the alignment all over again."
     },
@@ -53,9 +73,18 @@
       "type": "prose",
       "heading": "Narration is the clock",
       "bullets": [
-        "Script first",
-        "Then audio",
-        "Then pictures"
+        {
+          "text": "Script first",
+          "icon": "file-pen"
+        },
+        {
+          "text": "Then audio",
+          "icon": "audio-lines"
+        },
+        {
+          "text": "Then pictures",
+          "icon": "image"
+        }
       ],
       "narration": "So invert it. The script comes first. Speech renders each scene and reports exactly how long it turned out to be. Only then does anything get drawn, and the renderer is simply told how much time it has. Synchronisation stops being a problem you solve."
     },
@@ -83,12 +112,24 @@
     },
     {
       "id": "the-cost",
-      "type": "prose",
+      "type": "cards",
       "heading": "Zero dollars",
-      "bullets": [
-        "No API credits",
-        "No monthly floor",
-        "About twice the runtime"
+      "cards": [
+        {
+          "icon": "credit-card",
+          "title": "No API credits",
+          "detail": "Nothing metered, nothing uploaded"
+        },
+        {
+          "icon": "calendar-x",
+          "title": "No monthly floor",
+          "detail": "No subscription to clear"
+        },
+        {
+          "icon": "clock",
+          "title": "Twice the runtime",
+          "detail": "A 2 min clip costs about 4 min"
+        }
       ],
       "narration": "A video costs nothing to make. There is no subscription to buy and no monthly floor to clear. What you pay instead is time, at roughly twice the length of the finished video. A two minute clip takes about four minutes, and none of it needs you watching."
     },
@@ -97,9 +138,18 @@
       "type": "prose",
       "heading": "Where it stands",
       "bullets": [
-        "Voice works",
-        "Runs resume",
-        "Edits are cheap"
+        {
+          "text": "Voice works",
+          "icon": "mic-vocal"
+        },
+        {
+          "text": "Runs resume",
+          "icon": "rotate-ccw"
+        },
+        {
+          "text": "Edits are cheap",
+          "icon": "pencil"
+        }
       ],
       "narration": "As things stand, the whole pipeline works. Runs checkpoint after every scene, so a closed laptop lid costs you ninety seconds rather than the afternoon. And because everything is cached by content, editing one slide costs seconds rather than a rebuild."
     }
