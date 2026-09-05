@@ -11,6 +11,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from narratr.paths import STORE
 from narratr.state import Manifest
 
 
@@ -153,14 +154,14 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	print(f"stitch: {len(scenes)} scene(s)")
 	for scene in scenes:
 		entry = manifest.data["scenes"][scene["id"]]
-		out = muxed_dir / f"{scene['id']}.{entry['key']}.mp4"
+		out = muxed_dir / f"{entry['audio_key']}.{entry['video_key']}.mp4"
 
 		if not out.exists():
 			tmp = out.with_name(f".{out.name}.partial.mp4")
 			_ffmpeg(
 				mux_args(
-					run_dir / "video" / entry["video"],
-					run_dir / "audio" / entry["audio"],
+					STORE / "video" / entry["video"],
+					STORE / "audio" / entry["audio"],
 					tmp,
 				),
 				f"mux {scene['id']}",

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from narratr.device import release_cache, select
-from narratr.paths import ROOT
+from narratr.paths import ROOT, STORE
 from narratr.state import Manifest
 
 
@@ -37,6 +37,19 @@ def _resolve_voice(spec: dict[str, Any]) -> Path:
 def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	"""TTS, one clip per scene, resumable."""
 	todo = manifest.pending("audio")
+
+	# Claim content-addressed hits before loading anything. The model costs ~75s
+	# to load, and a run where every scene is already narrated should not pay it.
+	audio_dir = STORE / "audio"
+	remaining = []
+	for scene_id in todo:
+		cached = audio_dir / f"{manifest.data['scenes'][scene_id]['audio_key']}.wav"
+		if cached.exists():
+			manifest.mark(scene_id, "audio", cached.name)
+		else:
+			remaining.append(scene_id)
+	todo = remaining
+
 	if not todo:
 		print("narrate: nothing to do")
 		return
@@ -49,8 +62,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	import torchaudio
 	from chatterbox.tts_turbo import ChatterboxTurboTTS
 
-	audio_dir = run_dir / "audio"
-	audio_dir.mkdir(exist_ok=True)
+	audio_dir.mkdir(parents=True, exist_ok=True)
 
 	device = select()
 	print(f"narrate: {len(todo)} scene(s) on {device}")
@@ -69,14 +81,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	elapsed = 0.0
 
 	for n, scene_id in enumerate(todo, 1):
-		key = manifest.data["scenes"][scene_id]["key"]
-		out = audio_dir / f"{scene_id}.{key}.wav"
-
-		if out.exists():  # content-addressed hit
-			manifest.mark(scene_id, "audio", out.name)
-			print(f"  [{n}/{len(todo)}] {scene_id}: cached")
-			continue
-
+		out = audio_dir / f"{manifest.data['scenes'][scene_id]['audio_key']}.wav"
 		started = time.perf_counter()
 		wav = model.generate(by_id[scene_id]["narration"], audio_prompt_path=str(reference))
 		took = time.perf_counter() - started

@@ -25,18 +25,30 @@ def atomic_write(path: Path, payload: str) -> None:
 	tmp.rename(path)
 
 
-def scene_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
-	"""Content address: same inputs -> same file -> skip.
+def _digest(material: Any) -> str:
+	return hashlib.sha256(json.dumps(material, sort_keys=True).encode()).hexdigest()[:16]
 
-	This is what gives resume and incremental re-render from one mechanism.
-	Edit one scene's narration and only that scene re-runs.
-	"""
+
+def audio_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
+	"""What the narration depends on. Changing the picture must not re-narrate."""
 	voice = spec.get("voice", {})
-	material = json.dumps(
-		[scene["narration"], voice.get("reference"), voice.get("seed"), "chatterbox-turbo"],
-		sort_keys=True,
+	return _digest(
+		[scene["narration"], voice.get("reference"), voice.get("seed"), "chatterbox-turbo"]
 	)
-	return hashlib.sha256(material.encode()).hexdigest()[:16]
+
+
+# Everything that changes what a frame looks like. Narration is in here via the
+# audio key, because the scene's length comes from it.
+VISUAL_FIELDS = ("type", "heading", "bullets", "mermaid", "revealSteps", "code", "lang")
+
+
+def video_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
+	"""What the picture depends on.
+
+	Keyed separately from audio so editing a diagram re-renders the video and
+	reuses the narration, and editing narration does both.
+	"""
+	return _digest([audio_key(scene, spec)] + [scene.get(field) for field in VISUAL_FIELDS])
 
 
 def run_id_for(spec: dict[str, Any]) -> str:
@@ -61,20 +73,50 @@ class Manifest:
 	def load_or_create(cls, run_dir: Path, spec: dict[str, Any], run_id: str) -> Manifest:
 		path = run_dir / "manifest.json"
 		if path.exists():
-			return cls(path, json.loads(path.read_text()))
+			manifest = cls(path, json.loads(path.read_text()))
+			manifest.refresh(spec)
+			return manifest
 		data = {
 			"run_id": run_id,
 			"created": time.time(),
 			"title": spec["source"]["title"],
 			"voice": spec.get("voice", {}),
 			"scenes": {
-				s["id"]: {"key": scene_key(s, spec), "audio": None, "video": None}
+				s["id"]: {
+					"audio_key": audio_key(s, spec),
+					"video_key": video_key(s, spec),
+					"audio": None,
+					"aligned": None,
+					"video": None,
+				}
 				for s in spec["scenes"]
 			},
 		}
 		manifest = cls(path, data)
 		manifest.commit()
 		return manifest
+
+	def refresh(self, spec: dict[str, Any]) -> None:
+		"""Re-key against the current spec, clearing whatever it invalidates.
+
+		A stage's output is only still valid if the key it was made from has not
+		moved. Editing narration invalidates audio, timings and video; editing a
+		diagram invalidates only the video.
+		"""
+		for scene in spec["scenes"]:
+			entry = self.data["scenes"].setdefault(
+				scene["id"], {"audio": None, "aligned": None, "video": None}
+			)
+			fresh_audio = audio_key(scene, spec)
+			fresh_video = video_key(scene, spec)
+			if entry.get("audio_key") != fresh_audio:
+				entry["audio_key"] = fresh_audio
+				entry["audio"] = None
+				entry["aligned"] = None
+			if entry.get("video_key") != fresh_video:
+				entry["video_key"] = fresh_video
+				entry["video"] = None
+		self.commit()
 
 	def commit(self) -> None:
 		atomic_write(self.path, json.dumps(self.data, indent=2))

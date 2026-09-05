@@ -68,14 +68,23 @@ uv run narratr status <run-id>               # progress
 uv run narratr blocks <doc> --json           # leaf block ids for the ledger
 ```
 
-Iterating on one slide? Render it alone — about 6 seconds instead of a full pass:
+Edits are cheap. Artifacts are content-addressed in a shared `store/`, keyed
+separately for audio and picture, so a re-run only redoes what actually changed:
+
+| Change | Cost |
+|---|---|
+| Nothing | ~1s |
+| A diagram or some bullets | ~7s |
+| One scene's narration | ~45s |
+| Everything (cold) | ~2.5 min |
+
+To iterate on a single scene without touching the rest:
 
 ```sh
 uv run narratr render scenes.json --only the-flow
 ```
 
-Repeatable, and it skips stitching so `video.mp4` is never left partial. Run
-without `--only` to assemble the finished video.
+Repeatable, and it skips stitching so `video.mp4` is never left partial.
 
 `--detach` survives the terminal closing, the parent shell exiting, and the
 Claude session ending. Runs are checkpointed per scene, so an interruption

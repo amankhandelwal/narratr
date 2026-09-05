@@ -13,3 +13,4 @@ demo/out/
 demo/.venv/
 
 .DS_Store
+store/

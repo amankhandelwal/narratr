@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from narratr.spec import summarise, validate
-from narratr.state import run_id_for, scene_key
+from narratr.state import audio_key, run_id_for, video_key
 
 EXAMPLE = Path(__file__).resolve().parent.parent / "examples" / "scenes.json"
 
@@ -39,20 +39,49 @@ def test_schema_rejects_more_than_six_bullets():
 	assert validate(spec)
 
 
-def test_scene_key_changes_with_narration():
+def test_audio_key_changes_with_narration():
 	spec = load()
 	scene = spec["scenes"][0]
-	before = scene_key(scene, spec)
+	before = audio_key(scene, spec)
 	scene["narration"] += " One more sentence."
-	assert scene_key(scene, spec) != before
+	assert audio_key(scene, spec) != before
 
 
-def test_scene_key_changes_with_voice():
+def test_audio_key_changes_with_voice():
 	spec = load()
 	scene = spec["scenes"][0]
-	before = scene_key(scene, spec)
+	before = audio_key(scene, spec)
 	spec["voice"]["reference"] = "assets/voices/other.wav"
-	assert scene_key(scene, spec) != before
+	assert audio_key(scene, spec) != before
+
+
+def test_editing_the_picture_does_not_renarrate():
+	"""A diagram edit must not invalidate audio that costs 100x more to make."""
+	spec = load()
+	scene = next(s for s in spec["scenes"] if s["type"] == "diagram")
+	audio_before = audio_key(scene, spec)
+	video_before = video_key(scene, spec)
+	scene["mermaid"] = scene["mermaid"] + '\n    E --> F["extra"]'
+	assert audio_key(scene, spec) == audio_before
+	assert video_key(scene, spec) != video_before
+
+
+def test_editing_bullets_invalidates_only_the_video():
+	spec = load()
+	scene = spec["scenes"][0]
+	audio_before = audio_key(scene, spec)
+	video_before = video_key(scene, spec)
+	scene["bullets"] = ["something", "different"]
+	assert audio_key(scene, spec) == audio_before
+	assert video_key(scene, spec) != video_before
+
+
+def test_editing_narration_invalidates_both():
+	spec = load()
+	scene = spec["scenes"][0]
+	video_before = video_key(scene, spec)
+	scene["narration"] += " Another sentence."
+	assert video_key(scene, spec) != video_before
 
 
 def test_run_id_is_stable():

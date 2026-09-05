@@ -14,7 +14,9 @@ from narratr.align import write_captions
 from narratr.state import Manifest
 
 
-def _fixture(tmp_path: Path):
+def _fixture(tmp_path: Path, monkeypatch):
+	# Timings live in the shared store, not under the run directory.
+	monkeypatch.setattr("narratr.align.STORE", tmp_path)
 	spec = {
 		"scenes": [
 			{"id": "one", "type": "prose", "narration": "a"},
@@ -22,7 +24,7 @@ def _fixture(tmp_path: Path):
 		]
 	}
 	timings = tmp_path / "timings"
-	timings.mkdir()
+	timings.mkdir(exist_ok=True)
 	for name in ("one", "two"):
 		(timings / f"{name}.k.json").write_text(
 			json.dumps(
@@ -36,23 +38,23 @@ def _fixture(tmp_path: Path):
 		tmp_path / "m.json",
 		{
 			"scenes": {
-				"one": {"key": "k", "aligned": "one.k.json"},
-				"two": {"key": "k", "aligned": "two.k.json"},
+				"one": {"audio_key": "k", "aligned": "one.k.json"},
+				"two": {"audio_key": "k", "aligned": "two.k.json"},
 			}
 		},
 	)
 	return spec, manifest
 
 
-def test_second_scene_is_offset_by_the_first(tmp_path):
-	spec, manifest = _fixture(tmp_path)
+def test_second_scene_is_offset_by_the_first(tmp_path, monkeypatch):
+	spec, manifest = _fixture(tmp_path, monkeypatch)
 	write_captions(spec, manifest, tmp_path)
 	srt = (tmp_path / "captions.srt").read_text()
 	assert "00:00:10,000 --> 00:00:11,000" in srt
 
 
-def test_measured_durations_override_audio_length(tmp_path):
-	spec, manifest = _fixture(tmp_path)
+def test_measured_durations_override_audio_length(tmp_path, monkeypatch):
+	spec, manifest = _fixture(tmp_path, monkeypatch)
 	write_captions(spec, manifest, tmp_path, durations={"one": 10.5, "two": 10.5})
 	srt = (tmp_path / "captions.srt").read_text()
 	assert "00:00:10,500 --> 00:00:11,500" in srt

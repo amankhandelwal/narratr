@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from narratr.device import release_cache, select
+from narratr.paths import STORE
 from narratr.state import Manifest, atomic_write
 
 # MMS_FA's vocabulary is lowercase latin plus apostrophe.
@@ -122,8 +123,21 @@ def _align_one(
 def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	"""Align every narrated scene, then write one captions file for the video."""
 	todo = manifest.pending("aligned")
+
+	# Same reasoning as narration: claim cached work before loading the model.
+	timings_dir = STORE / "timings"
+	remaining = []
+	for scene_id in todo:
+		cached = timings_dir / f"{manifest.data['scenes'][scene_id]['audio_key']}.json"
+		if cached.exists():
+			manifest.mark(scene_id, "aligned", cached.name)
+		else:
+			remaining.append(scene_id)
+	todo = remaining
+
 	if not todo:
 		print("align: nothing to do")
+		write_captions(spec, manifest, run_dir)
 		return
 
 	missing = [sid for sid in todo if not manifest.data["scenes"][sid].get("audio")]
@@ -134,8 +148,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	import torchaudio
 	from torchaudio.pipelines import MMS_FA
 
-	timings_dir = run_dir / "timings"
-	timings_dir.mkdir(exist_ok=True)
+	timings_dir.mkdir(parents=True, exist_ok=True)
 
 	device = select()
 	print(f"align: {len(todo)} scene(s) on {device}")
@@ -150,14 +163,8 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 
 	for n, scene_id in enumerate(todo, 1):
 		entry = manifest.data["scenes"][scene_id]
-		out = timings_dir / f"{scene_id}.{entry['key']}.json"
-
-		if out.exists():  # content-addressed hit
-			manifest.mark(scene_id, "aligned", out.name)
-			print(f"  [{n}/{len(todo)}] {scene_id}: cached")
-			continue
-
-		wav_path = run_dir / "audio" / entry["audio"]
+		out = timings_dir / f"{entry['audio_key']}.json"
+		wav_path = STORE / "audio" / entry["audio"]
 		started = time.perf_counter()
 		words = _align_one(
 			by_id[scene_id]["narration"], wav_path, model, tokenizer, aligner, MMS_FA, device
@@ -197,7 +204,7 @@ def write_captions(
 	exist, so captions track the video's real timeline rather than drifting
 	by a frame per scene.
 	"""
-	timings_dir = run_dir / "timings"
+	timings_dir = STORE / "timings"
 	cues: list[dict[str, Any]] = []
 	offset = 0.0
 

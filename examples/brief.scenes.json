@@ -34,7 +34,7 @@
         "Narrated video out",
         "All on your laptop"
       ],
-      "narration": "narratr turns a document into a narrated video, and it runs entirely on your own machine. Claude reads the document and writes the script. Your laptop does the rest, over the next couple of hours, while you get on with something else."
+      "narration": "Narrator turns a document into a narrated video, and it runs entirely on your own machine. You point it at a document, it writes the script, and your laptop does the rest while you get on with something else."
     },
     {
       "id": "the-failure",
@@ -62,7 +62,7 @@
       "id": "the-flow",
       "type": "diagram",
       "heading": "End to end",
-      "mermaid": "flowchart TD\n    A[\"doc.md\"] --> B[\"Claude writes script\"]\n    B --> C[\"Chatterbox speaks it\"]\n    C --> D[\"Renderer draws to fit\"]\n    D --> E[\"video.mp4\"]",
+      "mermaid": "flowchart TD\n    A[\"doc.md\"] --> B[\"Script\"]\n    B --> C[\"Narration\"]\n    C --> D[\"Visuals\"]\n    D --> E[\"video.mp4\"]",
       "revealSteps": [
         [
           "A"
@@ -78,7 +78,7 @@
           "E"
         ]
       ],
-      "narration": "A document goes in. Claude turns it into a scene list. Chatterbox speaks each scene and measures it. The renderer draws to fit. FFmpeg joins the pieces into one file."
+      "narration": "A document goes in and becomes a scene list. Each scene is narrated and measured. The visuals are drawn to fit the time the narration takes. Then the pieces are joined into one file."
     },
     {
       "id": "the-cost",
@@ -87,9 +87,9 @@
       "bullets": [
         "No API credits",
         "No monthly floor",
-        "Two and a half hours"
+        "About twice the runtime"
       ],
-      "narration": "A video costs nothing to make. There is no API credit to buy and no monthly floor to clear. What you pay instead is time. A thirty six minute video takes about two and a half hours of compute, and none of it needs you watching."
+      "narration": "A video costs nothing to make. There is no subscription to buy and no monthly floor to clear. What you pay instead is time, at roughly twice the length of the finished video. A two minute clip takes about four minutes, and none of it needs you watching."
     },
     {
       "id": "where-it-stands",

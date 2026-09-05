@@ -12,9 +12,9 @@ def manifest() -> Manifest:
 		Path("/tmp/unused.json"),
 		{
 			"scenes": {
-				"one": {"key": "k", "audio": None},
-				"two": {"key": "k", "audio": None},
-				"three": {"key": "k", "audio": "three.wav"},
+				"one": {"audio_key": "k", "audio": None},
+				"two": {"audio_key": "k", "audio": None},
+				"three": {"audio_key": "k", "audio": "three.wav"},
 			}
 		},
 	)

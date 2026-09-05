@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from narratr.paths import ROOT
+from narratr.paths import ROOT, STORE
 from narratr.state import Manifest
 
 REMOTION = ROOT / "render" / "remotion"
@@ -74,7 +74,9 @@ def highlight(code: str, lang: str | None, out: Path) -> str:
 	return out.read_text()
 
 
-def _props_for(scene: dict[str, Any], duration: float, assets: Path) -> dict[str, Any]:
+def _props_for(
+	scene: dict[str, Any], duration: float, assets: Path, key: str = "k"
+) -> dict[str, Any]:
 	props: dict[str, Any] = {
 		"type": scene["type"],
 		"durationInSeconds": duration,
@@ -83,22 +85,22 @@ def _props_for(scene: dict[str, Any], duration: float, assets: Path) -> dict[str
 	if scene["type"] == "prose":
 		props["bullets"] = scene.get("bullets", [])
 	elif scene["type"] == "diagram":
-		svg_path = assets / f"{scene['id']}.svg"
+		svg_path = assets / f"{key}.svg"
 		props["svg"] = mermaid_to_svg(scene["mermaid"], svg_path)
 		props["revealSteps"] = scene.get("revealSteps", [])
 	elif scene["type"] == "code":
 		code = scene.get("code", "")
 		props["code"] = code
 		props["lang"] = scene.get("lang")
-		props["html"] = highlight(code, scene.get("lang"), assets / f"{scene['id']}.html")
+		props["html"] = highlight(code, scene.get("lang"), assets / f"{key}.html")
 	return props
 
 
-def scene_duration(run_dir: Path, entry: dict[str, Any]) -> float:
+def scene_duration(entry: dict[str, Any]) -> float:
 	"""Duration measured from the rendered audio, never estimated."""
 	import torchaudio
 
-	info = torchaudio.info(str(run_dir / "audio" / entry["audio"]))
+	info = torchaudio.info(str(STORE / "audio" / entry["audio"]))
 	return info.num_frames / info.sample_rate
 
 
@@ -115,10 +117,23 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	if not (REMOTION / "node_modules").exists():
 		raise RenderError(f"renderer not installed: run 'npm install' in {REMOTION}")
 
-	video_dir = run_dir / "video"
-	video_dir.mkdir(exist_ok=True)
-	assets = run_dir / "assets"
-	assets.mkdir(exist_ok=True)
+	video_dir = STORE / "video"
+	video_dir.mkdir(parents=True, exist_ok=True)
+
+	remaining = []
+	for scene_id in todo:
+		cached = video_dir / f"{manifest.data['scenes'][scene_id]['video_key']}.mp4"
+		if cached.exists():
+			manifest.mark(scene_id, "video", cached.name)
+		else:
+			remaining.append(scene_id)
+	todo = remaining
+	if not todo:
+		print("render: nothing to do")
+		return
+
+	assets = STORE / "assets"
+	assets.mkdir(parents=True, exist_ok=True)
 
 	by_id = {s["id"]: s for s in spec["scenes"]}
 	print(f"render: {len(todo)} scene(s) at {FPS}fps")
@@ -127,16 +142,10 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 
 	for n, scene_id in enumerate(todo, 1):
 		entry = manifest.data["scenes"][scene_id]
-		out = video_dir / f"{scene_id}.{entry['key']}.mp4"
-
-		if out.exists():  # content-addressed hit
-			manifest.mark(scene_id, "video", out.name)
-			print(f"  [{n}/{len(todo)}] {scene_id}: cached")
-			continue
-
-		duration = scene_duration(run_dir, entry)
-		props = _props_for(by_id[scene_id], duration, assets)
-		props_file = assets / f"{scene_id}.props.json"
+		out = video_dir / f"{entry['video_key']}.mp4"
+		duration = scene_duration(entry)
+		props = _props_for(by_id[scene_id], duration, assets, entry["video_key"])
+		props_file = assets / f"{entry['video_key']}.props.json"
 		props_file.write_text(json.dumps(props))
 
 		tmp = out.with_name(f".{out.name}.partial.mp4")
