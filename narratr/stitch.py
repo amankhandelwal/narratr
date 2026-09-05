@@ -23,6 +23,7 @@ from typing import Any
 
 from narratr import chapters, speed
 from narratr import intro as title_card
+from narratr.align import write_captions
 from narratr.media import (
 	FPS,
 	MediaError,
@@ -232,7 +233,5 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 		shutil.copy(assembled, final)
 
 	print(f"✓ stitch: {probe_duration(final):.0f}s, {len(scenes) + 1} chapters -> {final.name}")
-
-	from narratr.align import write_captions
 
 	write_captions(spec, manifest, run_dir, durations=durations, offset=intro_duration)
