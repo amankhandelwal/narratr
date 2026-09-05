@@ -33,6 +33,24 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      # `narratr validate` checks every icon name against the installed Lucide
+      # pack, which is a real dependency of the gate rather than a renderer
+      # detail -- so the spec tests need it too. Without it 14 tests fail on
+      # "icons: pack not installed" and CI is testing a different thing from
+      # the developer. Chromium is skipped: mermaid-cli pulls ~150 MB of it and
+      # nothing in the Python suite shells out to mmdc.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: render/remotion/package-lock.json
+
+      - name: Install the icon pack
+        run: npm ci
+        working-directory: render/remotion
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "true"
+
       - name: Lint
         run: uv run ruff check .
 
