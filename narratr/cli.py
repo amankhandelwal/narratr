@@ -59,6 +59,15 @@ def cmd_render(args: argparse.Namespace) -> int:
 			print(f"  - {problem}")
 		return 1
 
+	known = {scene["id"] for scene in spec["scenes"]}
+	unknown = [sid for sid in (args.only or []) if sid not in known]
+	if unknown:
+		print(f"❌ No such scene: {', '.join(unknown)}")
+		print(f"  available: {', '.join(sorted(known))}")
+		return 1
+
+	# The run id comes from the whole spec even when rendering a subset, so a
+	# later full run picks up the work rather than starting a new run.
 	run_id = run_id_for(spec)
 	run_dir = RUNS / run_id
 	run_dir.mkdir(parents=True, exist_ok=True)
@@ -67,8 +76,16 @@ def cmd_render(args: argparse.Namespace) -> int:
 		# Daemonize so the run outlives the session that started it. Popen dups
 		# the descriptor, so closing our handle here does not affect the child.
 		with open(run_dir / "run.log", "a") as log:
+			forwarded = [arg for sid in (args.only or []) for arg in ("--only", sid)]
 			subprocess.Popen(
-				[sys.executable, "-m", "narratr.cli", "render", str(args.scenes.resolve())],
+				[
+					sys.executable,
+					"-m",
+					"narratr.cli",
+					"render",
+					str(args.scenes.resolve()),
+					*forwarded,
+				],
 				stdout=log,
 				stderr=subprocess.STDOUT,
 				start_new_session=True,
@@ -79,16 +96,29 @@ def cmd_render(args: argparse.Namespace) -> int:
 
 	shutil.copy(args.scenes, run_dir / "scenes.json")
 	manifest = Manifest.load_or_create(run_dir, spec, run_id)
+	manifest.restrict(args.only)
 	print(f"run {run_id}: {spec['source']['title']}")
+	if args.only:
+		print(f"  only: {', '.join(args.only)}")
 
 	narrate.run(spec, manifest, run_dir)
-	for stage in (align.run, render.run, stitch.run):
+	# Stitching a subset would overwrite video.mp4 with a partial video, so a
+	# restricted run stops after the per-scene files.
+	stages = (align.run, render.run) if args.only else (align.run, render.run, stitch.run)
+	for stage in stages:
 		try:
 			stage(spec, manifest, run_dir)
 		except NotImplementedError as exc:
 			print(f"\n⚠️  Stopped: {exc}")
 			print(f"  Audio is complete in {run_dir / 'audio'}")
 			return 2
+
+	if args.only:
+		for scene_id in args.only:
+			video = manifest.data["scenes"][scene_id].get("video")
+			if video:
+				print(f"→ {run_dir / 'video' / video}")
+		print("  Run without --only to stitch the finished video.")
 	return 0
 
 
@@ -135,6 +165,12 @@ def build_parser() -> argparse.ArgumentParser:
 		"--detach",
 		action="store_true",
 		help="run in the background; survives this session ending",
+	)
+	render_cmd.add_argument(
+		"--only",
+		action="append",
+		metavar="SCENE_ID",
+		help="render just this scene, repeatable; skips stitching",
 	)
 
 	status_cmd = sub.add_parser("status", help="progress of a run")

@@ -50,6 +50,12 @@ class Manifest:
 	def __init__(self, path: Path, data: dict[str, Any]) -> None:
 		self.path = path
 		self.data = data
+		# When set, stages act on this subset only. The manifest still holds
+		# every scene, so a later full run reuses whatever was already done.
+		self._only: set[str] | None = None
+
+	def restrict(self, scene_ids: list[str] | None) -> None:
+		self._only = set(scene_ids) if scene_ids else None
 
 	@classmethod
 	def load_or_create(cls, run_dir: Path, spec: dict[str, Any], run_id: str) -> Manifest:
@@ -74,7 +80,11 @@ class Manifest:
 		atomic_write(self.path, json.dumps(self.data, indent=2))
 
 	def pending(self, stage: str) -> list[str]:
-		return [sid for sid, s in self.data["scenes"].items() if not s.get(stage)]
+		return [
+			sid
+			for sid, s in self.data["scenes"].items()
+			if not s.get(stage) and (self._only is None or sid in self._only)
+		]
 
 	def mark(self, scene_id: str, stage: str, value: str) -> None:
 		self.data["scenes"][scene_id][stage] = value
