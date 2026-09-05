@@ -108,6 +108,30 @@ def probe_duration(path: Path) -> float:
 	return float(out.stdout.strip())
 
 
+def chapter_metadata(spec: dict[str, Any], durations: dict[str, float]) -> str:
+	"""An ffmpeg metadata file marking each scene as a chapter.
+
+	Titles come from the scene heading, falling back to the id. Offsets are
+	cumulative measured segment durations, so they track the assembled video
+	rather than the raw audio.
+	"""
+	lines = [";FFMETADATA1"]
+	start = 0.0
+	for scene in spec["scenes"]:
+		end = start + durations[scene["id"]]
+		title = scene.get("heading") or scene["id"]
+		lines += [
+			"[CHAPTER]",
+			"TIMEBASE=1/1000",
+			f"START={round(start * 1000)}",
+			# One millisecond short so chapters do not overlap by a tick.
+			f"END={max(round(end * 1000) - 1, round(start * 1000))}",
+			f"title={title}",
+		]
+		start = end
+	return "\n".join(lines) + "\n"
+
+
 def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	scenes = spec["scenes"]
 	incomplete = [
@@ -150,6 +174,9 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	listing = run_dir / "concat.txt"
 	listing.write_text("".join(f"file '{p.relative_to(run_dir)}'\n" for p in segments))
 
+	chapters = run_dir / "chapters.txt"
+	chapters.write_text(chapter_metadata(spec, durations))
+
 	final = run_dir / "video.mp4"
 	tmp = final.with_name(".video.partial.mp4")
 	_ffmpeg(
@@ -160,6 +187,10 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 			"0",
 			"-i",
 			str(listing),
+			"-i",
+			str(chapters),
+			"-map_metadata",
+			"1",
 			"-c",
 			"copy",
 			"-movflags",
@@ -171,7 +202,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	tmp.rename(final)
 
 	total = probe_duration(final)
-	print(f"✓ stitch: {total:.0f}s -> {final.name}")
+	print(f"✓ stitch: {total:.0f}s, {len(scenes)} chapters -> {final.name}")
 
 	# Captions are re-derived from the muxed segment durations, not the raw
 	# audio: frame rounding shifts each scene slightly, and over dozens of
