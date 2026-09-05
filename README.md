@@ -1,6 +1,11 @@
-# narratr
+<p align="center">
+  <img src="assets/Narratr.png" alt="narratr" width="520">
+</p>
 
-Turn a document into a narrated video, locally. No API bills, nothing uploaded.
+<p align="center">
+  <strong>Turn a document into a narrated video, locally.</strong><br>
+  No API bills, nothing uploaded.
+</p>
 
 Point a Claude session at a Notion page or a markdown file and ask for a video.
 Claude writes the script; your laptop renders it while you do something else.
@@ -119,6 +124,21 @@ against two and a half minutes.
 Chatterbox Turbo has no built-in voice of its own — it speaks only as the
 reference clip, so that clip sets the character of every video.
 
+## The title card
+
+Every video opens with a four-second card: the mark, the document's title, and
+`assets/intro.mp3`. It is built like a scene — rendered against a duration it is
+told, audio padded to a whole number of frames — so assembly does not treat it
+as a special case.
+
+Replace either asset to rebrand. `assets/intro.mp3` sets the length of the card,
+and `render/remotion/public/narratr-mark.png` is the image. The sting is
+attenuated 8 dB on the way in, because it is mastered about eleven decibels
+louder than the narration that follows it.
+
+The card is keyed apart from the scenes, so changing it rebuilds four seconds
+rather than the whole video.
+
 ## What it costs
 
 **Nothing per video.** Claude runs on your existing subscription; everything
@@ -163,8 +183,8 @@ Every stage works end to end. A run produces `runs/<id>/video.mp4` and
 | Scene render (Remotion) | rtf 0.55 |
 | Assembly (FFmpeg) | ~1s |
 
-The finished video carries chapters named after the scene headings, and
-`captions.srt` beside it.
+The finished video opens on the title card and carries chapters — the card
+first, then one per scene heading — with `captions.srt` beside it.
 
 **Audio and picture are frame-exact.** Each scene's audio is padded to a whole
 number of frames and the whole narration is encoded once, so scene boundaries

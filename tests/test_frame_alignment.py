@@ -50,7 +50,7 @@ def test_video_is_muted_before_concat(monkeypatch):
 	from narratr import stitch
 
 	captured: list[list[str]] = []
-	monkeypatch.setattr(stitch, "_ffmpeg", lambda args, what: captured.append(args))
+	monkeypatch.setattr(stitch, "ffmpeg", lambda args, what: captured.append(args))
 	monkeypatch.setattr(Path, "rename", lambda self, target: None)
 
 	stitch.strip_audio(Path("in.mp4"), Path("out.mp4"))

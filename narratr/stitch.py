@@ -32,7 +32,7 @@ class StitchError(Exception):
 	"""Assembly cannot proceed."""
 
 
-def _ffmpeg(args: list[str], what: str) -> None:
+def ffmpeg(args: list[str], what: str) -> None:
 	result = subprocess.run(["ffmpeg", "-y", "-v", "error", *args], capture_output=True, text=True)
 	if result.returncode != 0:
 		tail = (result.stderr or result.stdout).strip().splitlines()[-5:]
@@ -62,7 +62,7 @@ def frame_aligned(seconds: float, fps: int = FPS) -> float:
 def pad_to(src: Path, target: float, out: Path) -> None:
 	"""Copy audio, silence-padded (or trimmed) to exactly `target` seconds."""
 	tmp = out.with_name(f".{out.name}.partial.wav")
-	_ffmpeg(
+	ffmpeg(
 		["-i", str(src), "-af", "apad", "-t", f"{target:.6f}", "-c:a", "pcm_f32le", str(tmp)],
 		f"pad {src.name}",
 	)
@@ -79,7 +79,7 @@ def strip_audio(src: Path, out: Path) -> None:
 	-- the same failure as the audio side, arriving from the other direction.
 	"""
 	tmp = out.with_name(f".{out.name}.partial.mp4")
-	_ffmpeg(["-i", str(src), "-an", "-c:v", "copy", str(tmp)], f"strip audio {src.name}")
+	ffmpeg(["-i", str(src), "-an", "-c:v", "copy", str(tmp)], f"strip audio {src.name}")
 	tmp.rename(out)
 
 
@@ -126,21 +126,32 @@ def check_audible(path: Path, scene_id: str) -> None:
 # ---------------------------------------------------------------- chapters
 
 
-def chapter_metadata(spec: dict[str, Any], durations: dict[str, float]) -> str:
-	"""An ffmpeg metadata file marking each scene as a chapter."""
+def chapter_metadata(spec: dict[str, Any], durations: dict[str, float], intro: float = 0.0) -> str:
+	"""An ffmpeg metadata file marking each scene as a chapter.
+
+	The title card is a chapter of its own, so scrubbing to the first scene
+	means the first scene rather than four seconds of music.
+	"""
 	lines = [";FFMETADATA1"]
 	start = 0.0
-	for scene in spec["scenes"]:
-		end = start + durations[scene["id"]]
-		title = scene.get("heading") or scene["id"]
-		lines += [
+
+	def chapter(begin: float, end: float, title: str) -> list[str]:
+		return [
 			"[CHAPTER]",
 			"TIMEBASE=1/1000",
-			f"START={round(start * 1000)}",
+			f"START={round(begin * 1000)}",
 			# One millisecond short so chapters do not overlap by a tick.
-			f"END={max(round(end * 1000) - 1, round(start * 1000))}",
+			f"END={max(round(end * 1000) - 1, round(begin * 1000))}",
 			f"title={title}",
 		]
+
+	if intro > 0:
+		lines += chapter(0.0, intro, spec["source"]["title"])
+		start = intro
+
+	for scene in spec["scenes"]:
+		end = start + durations[scene["id"]]
+		lines += chapter(start, end, scene.get("heading") or scene["id"])
 		start = end
 	return "\n".join(lines) + "\n"
 
@@ -189,6 +200,18 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 		video_parts.append(muted)
 		durations[scene["id"]] = target
 
+	# Built after the scenes so its audio can be matched to theirs: the concat
+	# demuxer copies streams and will not join a card at a different rate.
+	from narratr import intro as title_card
+
+	intro_video, intro_audio, intro_duration = title_card.build(
+		spec["source"]["title"], reference=audio_parts[0]
+	)
+	check_audible(intro_audio, "intro")
+	audio_parts.insert(0, intro_audio)
+	video_parts.insert(0, intro_video)
+	print(f"  intro: {intro_duration:.1f}s title card")
+
 	# The assembled file is content-addressed too, so an unchanged re-run copies
 	# rather than re-encoding the whole narration.
 	final_key = digest(
@@ -196,6 +219,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 			[e["speech_key"], e["video_key"]]
 			for e in (manifest.data["scenes"][s["id"]] for s in scenes)
 		]
+		+ [intro_video.stem]
 	)
 	assembled = STORE / "final" / f"{final_key}.mp4"
 	assembled.parent.mkdir(parents=True, exist_ok=True)
@@ -207,24 +231,24 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 		_concat_list(video_parts, video_list)
 
 		track = run_dir / "narration.wav"
-		_ffmpeg(
+		ffmpeg(
 			["-f", "concat", "-safe", "0", "-i", str(audio_list), "-c", "copy", str(track)],
 			"concat audio",
 		)
 		silent = run_dir / "silent.mp4"
-		_ffmpeg(
+		ffmpeg(
 			["-f", "concat", "-safe", "0", "-i", str(video_list), "-c", "copy", str(silent)],
 			"concat video",
 		)
 
 		chapters = run_dir / "chapters.txt"
-		chapters.write_text(chapter_metadata(spec, durations))
+		chapters.write_text(chapter_metadata(spec, durations, intro=intro_duration))
 
 		tmp = assembled.with_name(f".{assembled.name}.partial.mp4")
 		# One audio encode over the whole timeline: no per-segment priming to
 		# accumulate. Streams are named explicitly because the rendered video
 		# carries its own silent track.
-		_ffmpeg(
+		ffmpeg(
 			[
 				"-i",
 				str(silent),
@@ -261,8 +285,8 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	except OSError:  # different filesystem
 		shutil.copy(assembled, final)
 
-	print(f"✓ stitch: {probe_duration(final):.0f}s, {len(scenes)} chapters -> {final.name}")
+	print(f"✓ stitch: {probe_duration(final):.0f}s, {len(scenes) + 1} chapters -> {final.name}")
 
 	from narratr.align import write_captions
 
-	write_captions(spec, manifest, run_dir, durations=durations)
+	write_captions(spec, manifest, run_dir, durations=durations, offset=intro_duration)

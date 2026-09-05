@@ -52,3 +52,16 @@ def test_chapters_do_not_overlap():
 def test_a_zero_length_scene_does_not_invert_its_chapter():
 	body = chapter_metadata({"scenes": [{"id": "x"}]}, {"x": 0.0})
 	assert "START=0" in body and "END=0" in body
+
+
+def test_the_title_card_gets_its_own_chapter():
+	"""Scrubbing to the first scene should land on the scene, not the music."""
+	body = chapter_metadata({**SPEC, "source": {"title": "The doc"}}, DURATIONS, intro=4.1)
+	assert body.count("[CHAPTER]") == 4
+	assert "title=The doc" in body
+	assert "START=4100" in body  # the first scene now starts after the card
+	assert "START=14100" in body  # 4.1 + 10
+
+
+def test_without_an_intro_nothing_moves():
+	assert chapter_metadata(SPEC, DURATIONS, intro=0.0) == meta()

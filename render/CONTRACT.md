@@ -28,6 +28,13 @@ fits its animation into the time it is given; it does not get to ask for more.
 - Be deterministic: same scene plus same duration produces the same frames.
 - Exit non-zero on failure and write nothing.
 
+## The title card
+
+A second entry point, `Intro`, renders the card that opens every video. It
+takes `{ durationInSeconds, title }` and nothing else. The duration is the
+intro sting's own length rather than a scene's narration, but the rule is
+unchanged: the renderer is told how long it has.
+
 ## What it must not do
 
 - Read `scenes.json` directly — it sees one scene at a time.

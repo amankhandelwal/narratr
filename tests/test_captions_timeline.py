@@ -59,3 +59,12 @@ def test_measured_durations_override_audio_length(tmp_path, monkeypatch):
 	srt = (tmp_path / "captions.srt").read_text()
 	assert "00:00:10,500 --> 00:00:11,500" in srt
 	assert "00:00:10,000 --> 00:00:11,000" not in srt
+
+
+def test_the_title_card_shifts_every_cue(tmp_path, monkeypatch):
+	spec, manifest = _fixture(tmp_path, monkeypatch)
+	write_captions(spec, manifest, tmp_path, offset=4.1)
+	srt = (tmp_path / "captions.srt").read_text()
+	assert "00:00:04,100 --> 00:00:05,100" in srt  # first scene
+	assert "00:00:14,100 --> 00:00:15,100" in srt  # second scene
+	assert "00:00:00,000" not in srt

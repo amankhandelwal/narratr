@@ -198,16 +198,19 @@ def write_captions(
 	manifest: Manifest,
 	run_dir: Path,
 	durations: dict[str, float] | None = None,
+	offset: float = 0.0,
 ) -> Path:
 	"""Stitch per-scene timings into one SRT on the video's timeline.
 
 	`durations` overrides the per-scene audio length once the muxed segments
 	exist, so captions track the video's real timeline rather than drifting
 	by a frame per scene.
+
+	`offset` is where the first scene starts, which is the length of the title
+	card. Without it every cue would be four seconds early for the whole video.
 	"""
 	timings_dir = STORE / "timings"
 	cues: list[dict[str, Any]] = []
-	offset = 0.0
 
 	for scene in spec["scenes"]:
 		entry = manifest.data["scenes"][scene["id"]]

@@ -24,7 +24,7 @@ class RenderError(Exception):
 	"""Rendering cannot proceed."""
 
 
-def _run(cmd: list[str], cwd: Path, what: str) -> None:
+def run_remotion(cmd: list[str], cwd: Path, what: str) -> None:
 	result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
 	if result.returncode != 0:
 		tail = (result.stderr or result.stdout).strip().splitlines()[-6:]
@@ -41,7 +41,7 @@ def mermaid_to_svg(source: str, out: Path) -> str:
 		mmd = out.with_suffix(".mmd")
 		mmd.write_text(source)
 		tmp = out.with_name(f".{out.name}.partial.svg")
-		_run(
+		run_remotion(
 			[
 				"npx",
 				"mmdc",
@@ -162,7 +162,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 
 		tmp = out.with_name(f".{out.name}.partial.mp4")
 		started = time.perf_counter()
-		_run(
+		run_remotion(
 			[
 				"npx",
 				"remotion",
