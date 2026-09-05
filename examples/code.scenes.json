@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "source": {
+    "title": "narratr code scene test",
+    "origin": "inline",
+    "block_ids": [
+      "clip-1",
+      "clip-2"
+    ]
+  },
+  "coverage": {
+    "clip-1": "the-sleep-gap",
+    "clip-2": "the-lid"
+  },
+  "voice": {
+    "reference": "assets/voices/sample-01.wav",
+    "seed": 7
+  },
+  "scenes": [
+    {
+      "id": "the-sleep-gap",
+      "type": "code",
+      "heading": "The remaining gap",
+      "code": "caffeinate -is uv run narratr render scenes.json",
+      "lang": "sh",
+      "narration": "Sleep is the one hole left. Wrapping the command in caffeinate keeps the machine from dozing off on its own. But it does not do what most people assume."
+    },
+    {
+      "id": "the-lid",
+      "type": "prose",
+      "heading": "The catch",
+      "bullets": [
+        "Lid close still sleeps",
+        "Unless a display is attached",
+        "Checkpointing covers it"
+      ],
+      "narration": "Closing the lid still puts the machine to sleep unless an external display is attached. So run it lid open on mains power, or lean on the checkpointing and accept losing the scene in flight."
+    }
+  ]
+}

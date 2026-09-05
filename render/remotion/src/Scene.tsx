@@ -18,6 +18,8 @@ export type SceneProps = {
 	revealSteps?: string[][];
 	code?: string;
 	lang?: string;
+	/** Shiki output for code scenes, highlighted ahead of render time. */
+	html?: string;
 };
 
 export const Scene: React.FC<SceneProps> = (props) => {
@@ -31,7 +33,14 @@ export const Scene: React.FC<SceneProps> = (props) => {
 		);
 	}
 	if (props.type === "code") {
-		return <Code heading={props.heading} code={props.code ?? ""} lang={props.lang} />;
+		return (
+			<Code
+				heading={props.heading}
+				code={props.code ?? ""}
+				lang={props.lang}
+				html={props.html}
+			/>
+		);
 	}
 	return <Prose heading={props.heading ?? ""} bullets={props.bullets ?? []} />;
 };

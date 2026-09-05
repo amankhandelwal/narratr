@@ -138,7 +138,7 @@ Every stage works end to end. A run produces `runs/<id>/video.mp4` and
 | Scene render (Remotion) | rtf 0.55 |
 | Stitch (FFmpeg) | seconds, stream copy |
 
-Not yet done: Shiki syntax highlighting for code scenes, and chapter markers.
+Not yet done: chapter markers.
 
 ## Troubleshooting
 

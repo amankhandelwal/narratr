@@ -18,9 +18,10 @@ def test_prose_carries_bullets_and_duration():
 	assert "svg" not in props
 
 
-def test_code_carries_source_not_bullets():
+def test_code_carries_source_not_bullets(tmp_path, monkeypatch):
+	monkeypatch.setattr("narratr.render.highlight", lambda code, lang, out: "<pre/>")
 	scene = {"id": "s", "type": "code", "code": "echo hi", "lang": "sh", "narration": "..."}
-	props = _props_for(scene, 4.0, ASSETS)
+	props = _props_for(scene, 4.0, tmp_path)
 	assert props["code"] == "echo hi"
 	assert props["lang"] == "sh"
 	assert "bullets" not in props
@@ -50,3 +51,21 @@ def test_mux_names_both_streams_explicitly():
 	assert args[args.index("-map") + 1] == "0:v:0"
 	rest = args[args.index("-map") + 2 :]
 	assert rest[rest.index("-map") + 1] == "1:a:0"
+
+
+def test_code_props_carry_highlighted_html(tmp_path, monkeypatch):
+	"""The html prop went missing once: Scene.tsx did not forward it and Code
+	silently fell back to plain text. Nothing failed, it just looked wrong."""
+	monkeypatch.setattr("narratr.render.highlight", lambda code, lang, out: "<pre>hl</pre>")
+	scene = {"id": "s", "type": "code", "code": "echo hi", "lang": "sh", "narration": "..."}
+	props = _props_for(scene, 4.0, tmp_path)
+	assert props["html"] == "<pre>hl</pre>"
+
+
+def test_highlight_is_cached_by_path(tmp_path):
+	from narratr.render import highlight
+
+	out = tmp_path / "s.html"
+	out.write_text("<pre>already here</pre>")
+	# An existing file must be reused rather than shelling out to node again.
+	assert highlight("ignored", "sh", out) == "<pre>already here</pre>"

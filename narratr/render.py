@@ -49,6 +49,31 @@ def mermaid_to_svg(source: str, out: Path) -> str:
 	return out.read_text()
 
 
+def highlight(code: str, lang: str | None, out: Path) -> str:
+	"""Syntax-highlight to HTML, cached by content address.
+
+	Done here rather than in the Remotion component so the renderer stays
+	synchronous — highlighting in the component would need delayRender and
+	would be paid for on every frame.
+	"""
+	if not out.exists():
+		payload = json.dumps({"code": code, "lang": lang or "text"})
+		result = subprocess.run(
+			["node", "scripts/highlight.mjs"],
+			cwd=REMOTION,
+			input=payload,
+			capture_output=True,
+			text=True,
+		)
+		if result.returncode != 0:
+			tail = (result.stderr or result.stdout).strip().splitlines()[-4:]
+			raise RenderError("highlight failed:\n  " + "\n  ".join(tail))
+		tmp = out.with_name(f".{out.name}.partial.html")
+		tmp.write_text(result.stdout)
+		tmp.rename(out)
+	return out.read_text()
+
+
 def _props_for(scene: dict[str, Any], duration: float, assets: Path) -> dict[str, Any]:
 	props: dict[str, Any] = {
 		"type": scene["type"],
@@ -62,8 +87,10 @@ def _props_for(scene: dict[str, Any], duration: float, assets: Path) -> dict[str
 		props["svg"] = mermaid_to_svg(scene["mermaid"], svg_path)
 		props["revealSteps"] = scene.get("revealSteps", [])
 	elif scene["type"] == "code":
-		props["code"] = scene.get("code", "")
+		code = scene.get("code", "")
+		props["code"] = code
 		props["lang"] = scene.get("lang")
+		props["html"] = highlight(code, scene.get("lang"), assets / f"{scene['id']}.html")
 	return props
 
 
