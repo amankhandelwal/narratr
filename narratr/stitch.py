@@ -6,6 +6,7 @@ rather than minutes and nothing is re-encoded.
 
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,46 @@ def _ffmpeg(args: list[str], what: str) -> None:
 	if result.returncode != 0:
 		tail = (result.stderr or result.stdout).strip().splitlines()[-5:]
 		raise StitchError(f"{what} failed:\n  " + "\n  ".join(tail))
+
+
+# Digital silence reports around -91 dB; real narration sits near -27 dB. The
+# threshold is nowhere near either, so it needs no tuning.
+SILENCE_DB = -80.0
+
+MEAN_VOLUME = re.compile(r"mean_volume:\s*(-?\d+(?:\.\d+)?) dB")
+
+
+def parse_mean_volume(ffmpeg_stderr: str) -> float | None:
+	"""Pull mean_volume out of ffmpeg's volumedetect output."""
+	found = MEAN_VOLUME.search(ffmpeg_stderr)
+	return float(found.group(1)) if found else None
+
+
+def mean_volume(path: Path) -> float | None:
+	"""Measure a file's mean volume in dB, or None if ffmpeg reported nothing."""
+	result = subprocess.run(
+		["ffmpeg", "-hide_banner", "-i", str(path), "-af", "volumedetect", "-f", "null", "-"],
+		capture_output=True,
+		text=True,
+	)
+	return parse_mean_volume(result.stderr)
+
+
+def check_audible(path: Path, scene_id: str) -> None:
+	"""Refuse to pass on a segment that contains silence.
+
+	A silent track has a codec, a duration and a bitrate, so every structural
+	check passes. This is the one that does not. It exists because a silent
+	video shipped once: ffmpeg picked Remotion's silent AAC over the narration
+	and reported success.
+	"""
+	level = mean_volume(path)
+	if level is None:
+		raise StitchError(f"{scene_id}: could not measure audio in {path.name}")
+	if level < SILENCE_DB:
+		raise StitchError(
+			f"{scene_id}: audio is silent ({level:.1f} dB). Check the -map arguments in mux_args"
+		)
 
 
 def mux_args(video: Path, audio: Path, out: Path) -> list[str]:
@@ -102,6 +143,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 			)
 			tmp.rename(out)
 
+		check_audible(out, scene["id"])
 		segments.append(out)
 		durations[scene["id"]] = probe_duration(out)
 
