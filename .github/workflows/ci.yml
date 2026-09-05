@@ -17,10 +17,10 @@ jobs:
     name: Python
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v10
         with:
           # Verified on 3.11.9; pyproject caps the project below 3.13.
           python-version: "3.11"
@@ -39,7 +39,7 @@ jobs:
       # "icons: pack not installed" and CI is testing a different thing from
       # the developer. Chromium is skipped: mermaid-cli pulls ~150 MB of it and
       # nothing in the Python suite shells out to mmdc.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: npm
@@ -70,9 +70,9 @@ jobs:
       run:
         working-directory: render/remotion
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: npm
