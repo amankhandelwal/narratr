@@ -17,6 +17,7 @@ from typing import Any
 from narratr import speed
 from narratr.device import release_cache, select
 from narratr.paths import STORE
+from narratr.spoken import say
 from narratr.state import Manifest, atomic_write
 
 # MMS_FA's vocabulary is lowercase latin plus apostrophe.
@@ -31,8 +32,14 @@ class AlignmentError(Exception):
 
 
 def normalise(word: str) -> str:
-	"""Reduce a display word to what the aligner's vocabulary accepts."""
-	return UNSPEAKABLE.sub("", word.lower())
+	"""Reduce a display word to what the aligner's vocabulary accepts.
+
+	Numbers and symbols are spelled out first. Stripping them instead dropped
+	the token from the alignment target while Chatterbox went on speaking it,
+	so the neighbouring words swallowed that audio and their timings skewed --
+	and the token never reached the captions. See `narratr/spoken.py`.
+	"""
+	return UNSPEAKABLE.sub("", say(word).lower())
 
 
 def _timestamp(seconds: float) -> str:
@@ -216,6 +223,11 @@ def write_captions(
 		entry = manifest.data["scenes"][scene["id"]]
 		aligned = entry.get("aligned")
 		if not aligned:
+			# No cues for this scene, but the clock still runs through it. The
+			# old `continue` skipped the offset too, so every later cue landed
+			# early by this scene's whole duration. `durations` already carries
+			# the right length whenever stitch is the caller.
+			offset += (durations or {}).get(scene["id"], 0.0)
 			continue
 		payload = json.loads((timings_dir / aligned).read_text())
 		shifted = [
