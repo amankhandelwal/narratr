@@ -77,7 +77,9 @@ def speech_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 	Separate from audio_key so changing the speed resamples what already exists
 	instead of re-narrating it.
 	"""
-	return digest([audio_key(scene, spec), spec.get("voice", {}).get("speed", 1.0)])
+	from narratr.speed import DEFAULT_SPEED
+
+	return digest([audio_key(scene, spec), spec.get("voice", {}).get("speed", DEFAULT_SPEED)])
 
 
 def video_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:

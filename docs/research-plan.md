@@ -6,7 +6,7 @@ tags:
 ---
 # narratr — Research & Build Plan
 
-**Date:** 2026-09-05 · **Status:** narration built and benchmarked; render pipeline not started · **Scope:** personal tool, local, macOS on Apple Silicon
+**Date:** 2026-09-05 · **Status:** complete and in use; refinement only · **Scope:** personal tool, local, macOS on Apple Silicon
 
 ---
 
@@ -23,7 +23,8 @@ A Claude skill plus a local CLI. Claude reads a document and writes the script; 
 | **Word timings** | torchaudio forced alignment, local | Build on OSS |
 | **Slides + diagram animation** | Remotion (React → video) | Build on OSS |
 | **Diagram source** | Mermaid, rendered to SVG, revealed step-by-step | Build (~150 LOC) |
-| **Assembly** | FFmpeg concat demuxer | Buy (OSS) |
+| **Playback speed** | ffmpeg `atempo`, after narration | Build on OSS |
+| **Assembly** | FFmpeg, lossless concat + one encode | Buy (OSS) |
 
 **Cost per video: $0.** Claude runs on the subscription that already powers your session. Everything else is local.
 
@@ -32,7 +33,7 @@ A Claude skill plus a local CLI. Claude reads a document and writes the script; 
 **Three decisions carry the design:**
 
 1. **Audio-first.** Narration is generated first; the video timeline is derived from measured audio durations.
-2. **Skill writes, CLI renders.** Claude produces `scenes.json` and stops. A 2.5-hour compute job does not belong in a conversation.
+2. **Skill writes, CLI renders.** Claude produces `scenes.json` and stops. A long compute job does not belong in a conversation.
 3. **Every stage is resumable.** A run must survive a closed lid and the session that started it.
 
 ---
@@ -47,7 +48,7 @@ Invert it. Narration is the master clock.
 2. TTS renders each scene and reports its exact duration.
 3. The renderer is *told* the duration. It fits its animation into whatever it is given.
 
-Sync becomes a non-problem, not a problem you solve.
+Sync stops being a problem *upstream* of assembly. It is not automatic: the plan originally claimed sync "becomes a non-problem", and that turned out to be wrong at the last stage. See [Assembly](#stage-5--assembly).
 
 It also makes local TTS viable. Chatterbox drifts over long single passes and holds together over short ones. Scene-sized chunks are the natural unit of both the timeline and the model's competence.
 
@@ -226,7 +227,8 @@ flowchart TD
 
 ### The four rules
 
-- **Content-address every artifact.** Each scene is keyed on `hash(narration + voice_ref + seed + model)`. A matching file means skip. Resume and incremental re-render fall out of one mechanism: edit one scene, only that scene re-runs.
+- **Content-address every artifact, on three separate keys.** `audio_key` covers narration, reference clip, seed and model. `speech_key` adds playback speed. `video_key` adds the picture fields *and a digest of the renderer's own source*, because a component or an encoder flag changes the output as surely as a bullet does. Artifacts live in `store/`, outside any run directory, so editing one scene reuses everything else — across runs, not just within one.
+- **Trust the filesystem over the manifest.** On load the manifest re-keys against the current spec and clears any entry whose file has gone. A manifest that claims work is done while the artifact is missing reports "nothing to do" and ships a stale video.
 - **Atomic writes only.** Write a `.partial.wav` beside the target, then `rename()`. The temp name keeps its real extension — torchaudio infers the container from it, and a `.tmp` suffix breaks the write.
 - **Commit after each scene, not each stage.** `fsync` the manifest on every transition. The unit of loss is one scene, roughly 90 seconds.
 - **One process, many scenes.** Turbo costs 75 seconds to load. Never spawn per scene.
@@ -245,6 +247,82 @@ caffeinate -is uv run narratr render scenes.json
 
 ---
 
+## Stage 5 — Assembly
+
+The audio-first clock does its job all the way to the renderer. Assembly is
+where it was quietly undone, and the fix is the least obvious thing in the
+design.
+
+```mermaid
+flowchart TD
+    A["Scene audio"] --> B["Pad to whole frames"]
+    B --> C["Concat losslessly"]
+    D["Scene video"] --> E["Strip silent track"]
+    E --> F["Concat, stream copy"]
+    C --> G["Mux once,<br/>one AAC encode"]
+    F --> G
+    G --> H["video.mp4<br/>+ chapters"]
+
+    classDef audio fill:#D9EAD3,stroke:#85B87A,color:#1A1A1A
+    classDef visual fill:#FBE0D0,stroke:#D9945F,color:#1A1A1A
+    classDef work fill:#D6E4F0,stroke:#7BA7CC,color:#1A1A1A
+    classDef out fill:#FCF0C8,stroke:#D4B44A,color:#1A1A1A
+
+    class A,B,C audio
+    class D,E,F visual
+    class G work
+    class H out
+```
+
+### What went wrong
+
+A finished video drifted progressively out of sync — audio landing 0, 120, 147,
+221, 221, 229 ms late across six scenes. Linear in scene count, so a 34-scene
+video would have ended over a second out. It read as "very slightly off, worse
+toward the end", which is exactly what a linear accumulator feels like.
+
+Two independent causes, both the same shape: **an AAC track longer than its
+content, and a concat demuxer that advances by container duration.**
+
+- **Audio.** Each scene was encoded to AAC separately. Every segment carried its
+  own encoder priming, compensated by its own edit list — correct in isolation.
+  `-c copy` cannot carry per-file edit lists, so from the second segment onward
+  that priming became real audio.
+- **Video.** Remotion writes a silent AAC track into every rendered scene, about
+  50 ms longer than the picture. A container's duration is its longest stream,
+  so concat inserted a gap at each join and the picture drifted late.
+
+Fixing only the first moved the fault from audio to video rather than removing
+it. Both had to go.
+
+### The three rules
+
+- **Pad each scene's audio to a whole number of frames.** The renderer rounds a
+  scene to `round(seconds × fps)` frames; padding the audio to match makes the
+  two exactly equal. Without it the residual is a per-scene coin flip of up to
+  ±16.7 ms that a stream copy then bakes in.
+- **Encode the narration once, over the whole timeline.** No per-segment priming
+  can accumulate if there are no per-segment encodes.
+- **Mute the video segments before concatenating.** The renderer's silent track
+  is longer than its own picture; drop it rather than let it set the timeline.
+
+Verified three ways: video excess 0.0000s, every picture cut within 0 ms of its
+audio boundary, per-scene audio lag 0 ms. The assembled file is content-addressed
+too, so an unchanged re-run copies rather than re-encoding.
+
+### A note on how this was found
+
+The original diagnosis — mine — was wrong. It measured per-scene durations,
+found them fine, and never measured cumulative position in the assembled file.
+A fresh debugging agent given only the symptom found it by cross-correlating
+each narration against the shipped audio, and isolated the cause with two
+controls: swapping segment audio to PCM, and re-encoding at concat.
+
+The lesson is narrower than "get a second opinion": **aggregate measurements are
+blind to accumulating error.** Total duration was correct throughout.
+
+---
+
 ## Build vs Buy
 
 | Layer | Decision | Reasoning |
@@ -254,7 +332,7 @@ caffeinate -is uv run narratr render scenes.json
 | **Alignment** | **Build** — torchaudio | Already a dependency; forced alignment beats transcribing text we already have. |
 | **Slides** | **Build** on Remotion — ~~MARP~~ | MARP outputs *static* artifacts. Animating them means exporting frames and panning, which kills per-element reveals. |
 | **Diagram animation** | **Build** — ~~FlowGif~~ | Closed SaaS, GIF/PNG export. A GIF cannot be timed against narration. |
-| **Assembly** | **Buy** — FFmpeg | `concat` demuxer with stream copy. Milliseconds, no re-encode. |
+| **Assembly** | **Buy** — FFmpeg | Lossless audio concat, one AAC encode, video stream-copied. Per-segment encoding is what caused the drift described below. |
 
 **Ruled out for TTS:** ElevenLabs and Sarvam. The recurring cost bought nothing that could not be replaced locally.
 
@@ -264,7 +342,7 @@ caffeinate -is uv run narratr render scenes.json
 
 ## Cost
 
-**Dollars: $0.** Electricity for a 2.5-hour run is under two cents.
+**Dollars: $0.** Electricity is rounding error.
 
 ### Wall clock is the real budget
 
@@ -274,10 +352,22 @@ Real-time factors, which scale to whatever length you make. All measured, none e
 |---|---|---|
 | Script | — | conversational |
 | **Narration** | **1.33** | ~97s |
+| Speed | 0.02 | ~2s |
 | Alignment | 0.03 | ~2s |
 | Render | 0.55 | ~40s |
-| Stitch | copy | ~1s |
+| Assembly | — | ~1s |
 | **Total** | **~1.9** | **~2.5 min** |
+
+Editing is far cheaper than a cold run, which is the number that actually
+matters day to day:
+
+| Change | Cost |
+|---|---|
+| Nothing | ~1s |
+| A diagram or some bullets | ~7s |
+| Playback speed | ~40s |
+| One scene's narration | ~45s |
+| Cold | ~2.5 min |
 
 Rendering came in faster than realtime, against an estimate that was wrong by roughly 3×. 1080p30 has headroom; the planned fallback to 24fps and 1600×900 is not needed. Concurrency swept 4 to 12 on a 12-core machine: identical above 6, so Remotion's default needs no tuning.
 
@@ -289,8 +379,8 @@ Rendering came in faster than realtime, against an estimate that was wrong by ro
 
 - **Script quality is the whole product.** Voice and animation are solved. Whether the narration is worth watching is decided in the Pass-1/Pass-2 prompts. Budget most of the effort there.
 - **Remotion needs a paid Company License above 3 people.** The threshold is headcount, not whether anything is sold, and internal use counts. Using narratr on a work laptop triggers it. Free use needs no account or licence key — this is a terms obligation, not an enforced one. The renderer contract exists so Motion Canvas (MIT) can replace it; the swap gets more expensive with every scene component written.
-- **Cross-scene voice consistency is unproven.** Longest test so far is three scenes. Whether scene 40 still sounds like scene 3 is the open quality question and the failure mode local TTS is most prone to.
-- **The reference clip is a single point of failure.** Turbo has no fallback voice.
+- **Cross-scene voice consistency was closed by judgement, not by test.** A six-scene clip sounded consistent on a real listen and the question was closed there. It has not been tested at forty scenes. Recorded so nobody mistakes a decision for a measurement.
+- **Reveals are not cued to speech.** Bullets appear on an even schedule across 60% of the scene with no reference to when their words are spoken; measured drift between the two ran −3.0s to +2.0s. Not a defect in anything built, but the largest remaining gap between what the videos are and what they could be. The word timings needed to fix it are already produced and unused.
 - **~~MPS performance is unexplained~~ — resolved.** The erratic figures were the MPS caching allocator over-committing memory and forcing the machine to swap. Releasing it per scene fixed it. What remains unexplained is the gap to a quoted 0.499 on a 4090, and that `PYTORCH_ENABLE_MPS_FALLBACK=1` still sends unsupported ops to CPU silently. Neither is currently costing anything.
 - **Mermaid's SVG structure is not a public API.** Node ids and class names shift between versions. Pin the version and snapshot-test the selectors.
 
@@ -301,25 +391,34 @@ Rendering came in faster than realtime, against an estimate that was wrong by ro
 | Stage | State |
 |---|---|
 | Script engine | working; produced 34 scenes covering all 51 blocks of this document |
-| Schema + coverage gate | working; verified to reject dropped blocks, ghost scenes and over-long slides |
+| Schema + coverage gate | working; rejects dropped blocks, ghost scenes, over-long slides |
 | Block extraction | working, mechanical |
-| Narration | **working**, benchmarked, resumable |
-| Detached runs | **working**, verified surviving the parent process |
+| Narration | working, benchmarked, resumable |
+| Playback speed | working, default 0.92 |
 | Alignment | working, word timings + SRT |
-| Scene render | working, rtf 0.55 |
-| Stitch | working, stream copy |
+| Scene render | working, prose / diagram / code, Shiki highlighting |
+| Assembly | working, frame-exact, chapters + captions |
+| Detached runs | working, survives the parent process |
+| Single-scene iteration | working, `--only` |
+| Silent-audio guard | working, fails below −80 dB |
 
-A run now produces `runs/<id>/video.mp4` and `captions.srt` end to end.
+A run produces `runs/<title> [DD-MM HH:MM AM/PM]/video.mp4` with chapters, plus
+`captions.srt`.
 
 ---
 
 ## Next
 
-Everything in the original plan is built. What remains is refinement:
+Everything in the original plan is built, and the refinements that followed it
+are done too. What is left is one design gap and one untested claim:
 
-1. **Chapter markers** in the final concat.
-2. **Shiki highlighting** for code scenes, which currently render as plain monospace.
-3. **Fail loudly on silent audio**, so the class of bug that shipped once cannot ship again.
+1. **Cue reveals to speech.** The largest remaining improvement — see Risks. The
+   likely shape is an optional `cue` per bullet naming a phrase from that
+   scene's narration, resolved against the word timings, falling back to today's
+   even spacing when absent. Inferring the cue by matching text after the fact
+   does not work: bullets are paraphrases, and a matcher found nothing usable
+   for 5 of 18 elements.
+2. **Run a long document.** 51 blocks worked. Nothing longer has been tried.
 
 ---
 

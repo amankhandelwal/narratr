@@ -21,6 +21,10 @@ from narratr.state import Manifest
 MIN_TEMPO = 0.5
 MAX_TEMPO = 2.0
 
+# Chatterbox's natural pace is a shade fast for narration you are meant to
+# follow rather than skim. 0.92 was chosen by listening.
+DEFAULT_SPEED = 0.92
+
 
 class SpeedError(Exception):
 	"""The requested speed cannot be applied."""
@@ -77,7 +81,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	if not todo:
 		return
 
-	speed = float(spec.get("voice", {}).get("speed", 1.0))
+	speed = float(spec.get("voice", {}).get("speed", DEFAULT_SPEED))
 	speech_dir = STORE / "speech"
 	speech_dir.mkdir(parents=True, exist_ok=True)
 

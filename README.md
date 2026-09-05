@@ -101,23 +101,23 @@ uv run narratr render examples/scenes.json
 
 ## Voice
 
-Set the pace in `scenes.json`:
+`assets/voices/sample-01.wav` is the project voice. Point `voice.reference`
+somewhere else to change it.
 
 ```json
 "voice": { "reference": "assets/voices/sample-01.wav", "seed": 7, "speed": 0.92 }
 ```
 
-Below 1 is slower; pitch is unchanged. Speed is keyed separately from narration,
-so trying a different one resamples what already exists rather than
-regenerating it — about 40s for a six-scene clip instead of two and a half
-minutes.
+**Speed defaults to 0.92** — a little slower than Chatterbox's natural pace,
+which suits narration you follow rather than skim. Below 1 is slower; pitch is
+unchanged either way.
 
-Chatterbox Turbo has **no built-in voice**. It speaks only as the reference clip
-you give it, and that clip's quality caps every video you make.
+Speed is keyed apart from narration, so trying a different one resamples what
+already exists instead of regenerating it: about 40s for a six-scene clip
+against two and a half minutes.
 
-`assets/voices/` ships a sample so a fresh clone renders immediately. Record ten
-clean seconds of yourself and point `voice.reference` at it when you want it to
-sound like you.
+Chatterbox Turbo has no built-in voice of its own — it speaks only as the
+reference clip, so that clip sets the character of every video.
 
 ## What it costs
 
@@ -126,7 +126,8 @@ else is local.
 
 The budget is wall clock, at roughly **twice the video's length** on an M4 Pro.
 The bundled 6-scene example runs cold in about 2 minutes. Narration dominates
-at rtf 1.33; rendering is 0.55 and alignment is effectively free.
+at rtf 1.33; rendering is 0.55, and speed, alignment and assembly are close to
+free.
 
 To keep the machine awake through a long run:
 
@@ -157,11 +158,17 @@ Every stage works end to end. A run produces `runs/<id>/video.mp4` and
 |---|---|
 | Script engine (Claude skill) | conversational |
 | Narration (Chatterbox Turbo) | rtf 1.33 |
+| Speed (ffmpeg atempo) | rtf 0.02 |
 | Alignment (torchaudio forced) | rtf 0.03 |
 | Scene render (Remotion) | rtf 0.55 |
-| Stitch (FFmpeg) | seconds, stream copy |
+| Assembly (FFmpeg) | ~1s |
 
-The finished video carries chapters named after the scene headings.
+The finished video carries chapters named after the scene headings, and
+`captions.srt` beside it.
+
+**Audio and picture are frame-exact.** Each scene's audio is padded to a whole
+number of frames and the whole narration is encoded once, so scene boundaries
+land within 0 ms of each other however long the video is.
 
 ## Troubleshooting
 
@@ -175,10 +182,20 @@ slower. Check you are on Apple Silicon and that torch installed correctly.
 **Weights re-downloading** — they live in `~/.cache/huggingface`, outside the
 project. `make reset` does not touch them.
 
+**A change to the renderer seems to do nothing** — video is keyed on the React
+components, `mermaid.config.json` and `narratr/render.py`. Editing anything else
+that affects the picture will reuse the cached video. Add the file to
+`RENDERER_SOURCES` in `narratr/state.py`.
+
+**Everything re-renders after an edit** — expected if you changed narration:
+that invalidates the audio, its timings, and the picture, because a scene's
+length comes from its audio. Changing only bullets or a diagram re-renders just
+the video.
+
 ## Licence note
 
-Remotion, used by the (unbuilt) scene renderer, is free for individuals and
-organizations of up to 3 people. Above that it requires a paid Company License,
+Remotion, which renders the scenes, is free for individuals and organizations
+of up to 3 people. Above that it requires a paid Company License,
 counted by headcount rather than by whether anything is sold — internal use at a
 company counts. No account or licence key is needed for free use.
 

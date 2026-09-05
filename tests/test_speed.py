@@ -35,8 +35,8 @@ def test_speed_invalidates_the_video():
 	assert video_key(scene(), at(0.92)) != video_key(scene(), at(1.0))
 
 
-def test_default_speed_matches_an_explicit_one():
-	assert speech_key(scene(), SPEC) == speech_key(scene(), at(1.0))
+def test_unity_speed_is_distinct_from_the_default():
+	assert speech_key(scene(), at(1.0)) != speech_key(scene(), at(0.92))
 
 
 def test_single_filter_inside_the_valid_range():
@@ -66,3 +66,12 @@ def test_zero_or_negative_is_rejected():
 	for bad in (0, -1):
 		with pytest.raises(SpeedError):
 			tempo_chain(bad)
+
+
+def test_omitting_speed_uses_the_default():
+	"""0.92 was chosen by listening; an unset speed must not silently mean 1.0."""
+	from narratr.speed import DEFAULT_SPEED
+
+	bare = {**SPEC, "voice": {"reference": "v.wav", "seed": 7}}
+	assert speech_key(scene(), bare) == speech_key(scene(), at(DEFAULT_SPEED))
+	assert speech_key(scene(), bare) != speech_key(scene(), at(1.0))
