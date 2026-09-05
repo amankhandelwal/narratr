@@ -10,12 +10,14 @@ import json
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
-from narratr import align, blocks, doctor, icons, narrate, render, speed, stitch
-from narratr.paths import RUNS
-from narratr.spec import SpecError, load_spec, summarise, validate
-from narratr.state import Manifest, run_dir_name
+from narratr import blocks, doctor, icons, pipeline, stitch
+from narratr.errors import PipelineError
+from narratr.paths import RUNS, STORE
+from narratr.spec import load_spec, summarise, validate
+from narratr.state import Manifest, run_dir_name, safe_name
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -82,14 +84,17 @@ def cmd_render(args: argparse.Namespace) -> int:
 			print(f"  - {problem}")
 		return 1
 
-	known = {scene["id"] for scene in spec["scenes"]}
-	unknown = [sid for sid in (args.only or []) if sid not in known]
+	unknown = pipeline.unknown_scenes(spec, args.only)
 	if unknown:
+		known = sorted(scene["id"] for scene in spec["scenes"])
 		print(f"❌ No such scene: {', '.join(unknown)}")
-		print(f"  available: {', '.join(sorted(known))}")
+		print(f"  available: {', '.join(known)}")
 		return 1
 
-	run_id = args.run_name or run_dir_name(spec)
+	# --run-name is internal, but it still names a directory. run_dir_name
+	# sanitises; this used to not, so `--run-name ../../tmp/x` wrote outside
+	# runs/ and was forwarded verbatim to the detached child.
+	run_id = safe_name(args.run_name) if args.run_name else run_dir_name(spec)
 	run_dir = RUNS / run_id
 	run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -113,38 +118,80 @@ def cmd_render(args: argparse.Namespace) -> int:
 				start_new_session=True,
 			)
 		print(f"✓ Run started in background: {run_id}")
-		print("  narratr status")
+		print(f"  narratr status {run_id!r}")
 		return 0
 
 	shutil.copy(args.scenes, run_dir / "scenes.json")
 	manifest = Manifest.load_or_create(run_dir, spec, run_id)
-	manifest.restrict(args.only)
 	print(f"run: {run_id}")
 	if args.only:
 		print(f"  only: {', '.join(args.only)}")
 
-	narrate.run(spec, manifest, run_dir)
-	# Stitching a subset would overwrite video.mp4 with a partial video, so a
-	# restricted run stops after the per-scene files.
-	stages = (
-		(speed.run, align.run, render.run)
-		if args.only
-		else (speed.run, align.run, render.run, stitch.run)
-	)
-	for stage in stages:
-		try:
-			stage(spec, manifest, run_dir)
-		except NotImplementedError as exc:
-			print(f"\n⚠️  Stopped: {exc}")
-			print(f"  Audio is complete in {run_dir / 'audio'}")
-			return 2
+	pipeline.execute(spec, manifest, run_dir, only=args.only)
 
 	if args.only:
+		# A rendered scene carries Remotion's silent track, so the file the old
+		# code pointed at could not be listened to -- and it pointed into
+		# run_dir/video/, which has not existed since artifacts moved to store/.
 		for scene_id in args.only:
-			video = manifest.data["scenes"][scene_id].get("video")
-			if video:
-				print(f"→ {run_dir / 'video' / video}")
+			playable = stitch.preview(manifest, scene_id, run_dir)
+			if playable:
+				print(f"→ {playable}")
 		print("  Run without --only to stitch the finished video.")
+	return 0
+
+
+def cmd_gc(args: argparse.Namespace) -> int:
+	"""Delete store artifacts no run still refers to.
+
+	The store is append-only by design -- that is what makes an edit cheap --
+	but nothing ever removed anything, so every renderer change orphaned a full
+	set of videos and the directory only grew.
+	"""
+	live: set[str] = set()
+	for manifest_path in RUNS.glob("*/manifest.json"):
+		try:
+			data = json.loads(manifest_path.read_text())
+		except json.JSONDecodeError:
+			print(f"⚠️  skipping unreadable manifest: {manifest_path.parent.name}")
+			continue
+		for entry in data.get("scenes", {}).values():
+			for stage in ("audio", "speech", "aligned", "video"):
+				name = entry.get(stage)
+				if name:
+					live.add(Path(name).stem)
+			for key in ("audio_key", "speech_key", "video_key"):
+				if entry.get(key):
+					live.add(entry[key])
+
+	orphans: list[Path] = []
+	freed = 0
+	for path in STORE.rglob("*"):
+		if not path.is_file():
+			continue
+		# Keys are the stem, but padded files are "<key>.30.wav" and intro
+		# props are "intro.<key>.props.json", so match on any dot-separated part.
+		if live.isdisjoint(path.name.split(".")):
+			orphans.append(path)
+			freed += path.stat().st_size
+
+	if not orphans:
+		print("✓ gc: nothing to remove")
+		return 0
+
+	# Deleting is the one irreversible thing this tool does, so it says what
+	# it would do and needs to be told to do it.
+	print(f"gc: {len(orphans)} orphaned file(s), {freed / 1e6:.0f} MB")
+	if not args.delete:
+		for path in sorted(orphans)[:10]:
+			print(f"  {path.relative_to(STORE)}")
+		if len(orphans) > 10:
+			print(f"  ... and {len(orphans) - 10} more")
+		print("\n  Re-run with --delete to remove them.")
+		return 0
+	for path in orphans:
+		path.unlink(missing_ok=True)
+	print(f"✓ gc: freed {freed / 1e6:.0f} MB")
 	return 0
 
 
@@ -259,6 +306,11 @@ def build_parser() -> argparse.ArgumentParser:
 		help="render just this scene, repeatable; skips stitching",
 	)
 
+	gc_cmd = sub.add_parser("gc", help="remove store artifacts no run refers to")
+	gc_cmd.add_argument(
+		"--delete", action="store_true", help="actually remove them; otherwise just reports"
+	)
+
 	status_cmd = sub.add_parser("status", help="progress of a run")
 	status_cmd.add_argument("run_id", nargs="?", help="name or prefix; defaults to the newest")
 
@@ -267,26 +319,31 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
 	args = build_parser().parse_args()
-	handlers = {
+	handlers: dict[str, Callable[[argparse.Namespace], int]] = {
 		"doctor": cmd_doctor,
 		"blocks": cmd_blocks,
 		"icons": cmd_icons,
 		"validate": cmd_validate,
 		"render": cmd_render,
 		"status": cmd_status,
+		"gc": cmd_gc,
 	}
 	try:
 		return handlers[args.cmd](args)
-	except (
-		SpecError,
-		narrate.NarrationError,
-		align.AlignmentError,
-		render.RenderError,
-		stitch.StitchError,
-		speed.SpeedError,
-	) as exc:
+	except PipelineError as exc:
+		# One base class rather than a list that has to be kept in step with
+		# every module. IconError and IntroError were both missing from the old
+		# tuple and reached the user as tracebacks from inside a render.
 		print(f"❌ {exc}", file=sys.stderr)
 		return 1
+	except json.JSONDecodeError as exc:
+		print(f"❌ unreadable JSON: {exc}", file=sys.stderr)
+		return 1
+	except KeyboardInterrupt:
+		# Checkpointed per scene, so say what was kept rather than dumping a
+		# traceback from wherever the interrupt landed.
+		print("\n⚠️  Interrupted. Finished scenes are kept; re-run to continue.", file=sys.stderr)
+		return 130
 
 
 if __name__ == "__main__":

@@ -14,10 +14,11 @@ from typing import Any
 import jsonschema
 
 from narratr import icons
+from narratr.errors import PipelineError
 from narratr.paths import SCHEMA
 
 
-class SpecError(Exception):
+class SpecError(PipelineError):
 	"""The spec could not be read at all."""
 
 

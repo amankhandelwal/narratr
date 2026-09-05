@@ -17,6 +17,7 @@ import json
 from pathlib import Path
 
 from narratr import media
+from narratr.errors import PipelineError
 from narratr.paths import ROOT, STORE
 from narratr.state import digest, file_digest, renderer_digest
 
@@ -30,7 +31,7 @@ MARK = ROOT / "render" / "remotion" / "public" / "narratr-mark.png"
 GAIN_DB = -8
 
 
-class IntroError(Exception):
+class IntroError(PipelineError):
 	"""The title card cannot be built."""
 
 

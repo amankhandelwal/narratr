@@ -16,6 +16,7 @@ from typing import Any
 
 from narratr import speed
 from narratr.device import release_cache, select
+from narratr.errors import PipelineError
 from narratr.paths import STORE
 from narratr.spoken import say
 from narratr.state import Manifest, atomic_write
@@ -27,7 +28,7 @@ MAX_CUE_WORDS = 8
 MAX_CUE_SECONDS = 3.5
 
 
-class AlignmentError(Exception):
+class AlignmentError(PipelineError):
 	"""Alignment cannot proceed."""
 
 

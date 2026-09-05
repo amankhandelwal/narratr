@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from narratr import icons, media, speed
+from narratr.errors import PipelineError
 from narratr.paths import ROOT, STORE
 from narratr.state import Manifest, atomic_write
 
@@ -26,7 +27,7 @@ FPS = media.FPS
 TIMEOUT = 30 * 60
 
 
-class RenderError(Exception):
+class RenderError(PipelineError):
 	"""Rendering cannot proceed."""
 
 

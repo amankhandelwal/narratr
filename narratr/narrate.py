@@ -11,11 +11,12 @@ from pathlib import Path
 from typing import Any
 
 from narratr.device import release_cache, select
+from narratr.errors import PipelineError
 from narratr.paths import ROOT, STORE
 from narratr.state import Manifest
 
 
-class NarrationError(Exception):
+class NarrationError(PipelineError):
 	"""Narration cannot proceed as configured."""
 
 

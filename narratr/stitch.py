@@ -37,7 +37,7 @@ from narratr.media import (
 from narratr.paths import STORE
 from narratr.state import Manifest, digest
 
-__all__ = ["FPS", "StitchError", "run"]
+__all__ = ["FPS", "StitchError", "preview", "run"]
 
 
 class StitchError(MediaError):
@@ -56,6 +56,46 @@ def _measured(padded: Path, scene_id: str) -> float:
 		check_audible(padded, scene_id)
 		sidecar.write_text("ok")
 	return probe_duration(padded)
+
+
+def preview(manifest: Manifest, scene_id: str, run_dir: Path) -> Path | None:
+	"""Mux one scene's picture with its own narration, for --only.
+
+	The rendered scene mp4 carries Remotion's silent track, so the artifact
+	--only pointed at could not be listened to -- against a working agreement
+	that says to look at the artifact rather than the exit code.
+	"""
+	entry = manifest.data["scenes"].get(scene_id, {})
+	if not (entry.get("video") and entry.get("speech")):
+		return None
+	out = run_dir / f"{scene_id}.mp4"
+	tmp = out.with_name(f".{out.name}.partial.mp4")
+	try:
+		ffmpeg(
+			[
+				"-i",
+				str(STORE / "video" / entry["video"]),
+				"-i",
+				str(speed.path_for(entry)),
+				"-map",
+				"0:v:0",
+				"-map",
+				"1:a:0",
+				"-c:v",
+				"copy",
+				"-c:a",
+				"aac",
+				"-b:a",
+				"192k",
+				"-shortest",
+				str(tmp),
+			],
+			f"preview {scene_id}",
+		)
+		tmp.rename(out)
+	finally:
+		tmp.unlink(missing_ok=True)
+	return out
 
 
 def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:

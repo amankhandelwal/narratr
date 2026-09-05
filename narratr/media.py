@@ -16,6 +16,8 @@ import re
 import subprocess
 from pathlib import Path
 
+from narratr.errors import PipelineError
+
 # Must match FPS in render/remotion/src/Root.tsx, which is asserted by
 # tests/test_frame_alignment.py rather than left to a comment.
 FPS = 30
@@ -25,7 +27,7 @@ FPS = 30
 TIMEOUT = 30 * 60
 
 
-class MediaError(Exception):
+class MediaError(PipelineError):
 	"""An ffmpeg or ffprobe call failed."""
 
 

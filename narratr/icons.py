@@ -18,6 +18,7 @@ import re
 from functools import lru_cache
 from typing import Any
 
+from narratr.errors import PipelineError
 from narratr.paths import ROOT
 
 PACK = ROOT / "render" / "remotion" / "node_modules" / "lucide-static"
@@ -29,7 +30,7 @@ TAGS = PACK / "tags.json"
 LICENCE = re.compile(r"^<!--.*?-->\s*", re.DOTALL)
 
 
-class IconError(Exception):
+class IconError(PipelineError):
 	"""An icon could not be resolved."""
 
 

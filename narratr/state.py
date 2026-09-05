@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import re
+import tempfile
 import time
 from datetime import datetime
 from functools import lru_cache
@@ -21,13 +22,24 @@ from narratr.paths import ROOT, STORE
 
 
 def atomic_write(path: Path, payload: str) -> None:
-	"""Write via tmp + rename. A half-written file must never look complete."""
-	tmp = path.with_suffix(path.suffix + ".tmp")
-	with open(tmp, "w") as fh:
-		fh.write(payload)
-		fh.flush()
-		os.fsync(fh.fileno())
-	tmp.rename(path)
+	"""Write via tmp + rename. A half-written file must never look complete.
+
+	mkstemp rather than a predictable `<name>.tmp`: the old name could be
+	pre-created as a symlink by anything else on the machine, and this function
+	is presented as a safety primitive.
+	"""
+	handle, name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+	tmp = Path(name)
+	try:
+		with os.fdopen(handle, "w") as fh:
+			fh.write(payload)
+			fh.flush()
+			os.fsync(fh.fileno())
+		os.chmod(tmp, 0o644)  # mkstemp is 0600; these are ordinary artifacts
+		tmp.replace(path)
+	except BaseException:
+		tmp.unlink(missing_ok=True)
+		raise
 
 
 def digest(material: Any) -> str:
@@ -156,16 +168,23 @@ def video_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 UNSAFE = re.compile(r"[/\\:\x00-\x1f]+")
 
 
+def safe_name(raw: str) -> str:
+	"""A string that cannot escape or nest the directory it names."""
+	# A slash would be read as a path separator and silently nest the
+	# directory; `..` would climb out of runs/. Collapse whitespace first: a
+	# newline is whitespace, and substituting it as an unsafe character would
+	# leave a dash mid-title.
+	cleaned = UNSAFE.sub("-", " ".join(str(raw).split()))[:60].strip(" .")
+	return cleaned or "untitled"
+
+
 def run_dir_name(spec: dict[str, Any], when: datetime | None = None) -> str:
 	"""`<title> [DD-MM HH:MM AM/PM]`.
 
 	A slash would be read as a path separator and silently nest the directory,
 	so the date is dash-separated.
 	"""
-	# Collapse whitespace first: a newline is whitespace, and substituting it as
-	# an unsafe character would leave a dash mid-title.
-	title = " ".join(str(spec.get("source", {}).get("title", "untitled")).split())
-	title = UNSAFE.sub("-", title)[:60].strip() or "untitled"
+	title = safe_name(spec.get("source", {}).get("title", "untitled"))
 	stamp = (when or datetime.now()).strftime("%d-%m %I:%M %p")
 	return f"{title} [{stamp}]"
 
