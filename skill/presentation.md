@@ -46,7 +46,73 @@ a time.
 The same five-node pipeline measures 114×756 as `TD` and 606×124 as `LR` — one
 is a sliver down the middle of the screen, the other fills it.
 
-**Give diagram nodes icons.** Same as bullets, steps and cards — a node names
+**### Size a diagram for the frame
+
+A diagram is scaled whole to fit an 1728x814 box. Nothing reflows and the font
+never shrinks on its own — the picture just gets smaller, text included. Padding
+and node spacing are fixed pixels, so **shrinking the font makes text smaller on
+screen, not larger.** The lever is the other way round.
+
+Count the nodes and set the config in the `mermaid` string itself:
+
+| Nodes | Add |
+|---|---|
+| up to 4 | nothing |
+| 5 to 9 | `fontSize: 28px`, `padding: 10` |
+| 10 or more | `fontSize: 36px`, `padding: 6` |
+
+```
+---
+config:
+  themeVariables:
+    fontSize: 36px
+  flowchart:
+    padding: 6
+---
+flowchart LR
+    A@{ icon: "lucide:file-text", label: "doc.md" }
+```
+
+Only the keys named are overridden; the palette is untouched.
+
+**A straight chain past about ten nodes cannot be rescued this way** — it ends
+up 20:1 against a 2:1 frame and wastes all the height. Break it into rows or
+subgraphs. Shape beats font size: 25 branching nodes read larger than 9 in a
+line.
+
+### When the config runs out: split the diagram
+
+Only when a diagram is genuinely too dense to read at the largest setting —
+roughly a dozen nodes in a line, or twenty-five in total. Not a habit. A
+diagram that fits is better shown whole.
+
+When it does not fit, show the system once and then open one component at a
+time:
+
+1. **The high-level diagram**, components only, no internals.
+2. **For each component worth opening:** the same high-level diagram again with
+   that component highlighted and the rest dimmed, then a second scene with its
+   internals.
+
+The recap is what makes it digestible — it says where you are before it goes
+deep. Dim with a class, and list **only** the highlighted node in
+`revealSteps`; the reveal styling overrides whatever it is given, so a dimmed
+node named there comes back undimmed.
+
+```
+flowchart LR
+    A@{ icon: "lucide:inbox", label: "Ingest" }
+    B@{ icon: "lucide:mic", label: "Narrate" }
+    C@{ icon: "lucide:film", label: "Assemble" }
+    A --> B --> C
+    classDef dim fill:#0b1220,stroke:#1e293b,color:#475569
+    class A,C dim
+```
+
+A recap scene introduces no new source blocks. That is fine; the coverage gate
+maps blocks to scenes, not scenes to blocks.
+
+Give diagram nodes icons.** Same as bullets, steps and cards — a node names
 a thing, and the glyph says which thing at a glance:
 
 ```
