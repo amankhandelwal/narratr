@@ -17,7 +17,8 @@ Claude writes the script; your laptop renders it while you do something else.
 - **macOS on Apple Silicon** — narration runs on MPS
 - **[uv](https://docs.astral.sh/uv/)**, **ffmpeg**, **Node 20+**
 - **Python 3.11.9–3.12** (uv installs it if missing)
-- **~6 GB free** — 3.8 GB of model weights, 1.1 GB of Python environment
+- **~7 GB free** — 3.8 GB of model weights, 1.2 GB of Python environment,
+  1.1 GB of Node packages
 
 ```sh
 brew install uv ffmpeg node
@@ -28,26 +29,25 @@ brew install uv ffmpeg node
 ```sh
 git clone <this-repo> && cd narratr
 make setup
+npm install --prefix render/remotion
 ```
 
-`make setup` syncs the environment from `pyproject.toml`, downloads the
-Chatterbox Turbo weights into the shared HuggingFace cache, installs the
-pre-commit hook, and finishes by running `doctor`. First run takes a few
-minutes, mostly the weights.
+`make setup` covers the Python side only: it syncs the environment from
+`pyproject.toml`, downloads the Chatterbox Turbo weights into the shared
+HuggingFace cache, installs the pre-commit hook, and finishes by running
+`doctor`. First run takes a few minutes, mostly the weights.
 
-A green `doctor` means the machine can render:
+**The Node packages are the second command, and nothing before it complains.**
+Remotion draws the frames, Mermaid the diagrams, Shiki the code and Lucide the
+icons — all four live in `render/remotion/node_modules`. Skip it and the run
+gets all the way through narration before `render` refuses with "renderer not
+installed".
 
-```
-  ✓ python                  3.11.9
-  ✓ torch                   2.6.0
-  ✓ mps acceleration        available
-  ✓ chatterbox watermarker  ok
-  ✓ ffmpeg                  /opt/homebrew/bin/ffmpeg
-  ✓ node                    /Users/you/.nvm/versions/node/v22.16.0/bin/node
-  ✓ voice reference         1 sample(s)
-
-  ✓ Ready
-```
+A green `doctor` means the machine can render. It walks the Python and torch
+versions, MPS acceleration, the Chatterbox watermarker, `ffmpeg`, `node` and the
+voice reference, one line each, and each failing line names its own fix. It ends
+in `✓ Ready`, or in `❌ Not ready` and a non-zero exit — the skill checks it
+before spending anything.
 
 Then let Claude see the skill:
 
@@ -100,8 +100,18 @@ Runs land in `runs/<title> [DD-MM HH:MM AM/PM]/`. `narratr status` takes a name
 or any prefix of one, and defaults to the most recent run.
 
 `--detach` survives the terminal closing, the parent shell exiting, and the
-Claude session ending. Runs are checkpointed per scene, so an interruption
-costs one scene rather than the run — re-run the same command to resume.
+Claude session ending. It re-invokes itself with `--run-name`, which is what
+keeps the detached child writing into the directory the parent just announced
+instead of minting a second one a moment later.
+
+**Re-running the same command starts a new run rather than resuming the old
+one.** The directory name carries the clock, so a second `narratr render` mints
+`runs/<title> [DD-MM HH:MM AM/PM]/` afresh with an empty manifest — three goes
+at one spec leave three directories. Recovery comes from `store/`, not from the
+manifest: every scene the interrupted run finished is already sitting there
+under its content address, so the new run reuses it and only redoes the scene it
+died on. The outcome is the same and it is just as fast, but the mechanism is
+worth knowing the first time you go looking for a manifest to resume.
 
 Try it against the bundled example — six scenes using every slide shape:
 
@@ -186,7 +196,7 @@ rather than the whole video.
 else is local.
 
 The budget is wall clock, at roughly **twice the video's length** on an M4 Pro.
-The bundled 6-scene example runs cold in about 2 minutes. Narration dominates
+The bundled 6-scene example runs cold in about two and a half minutes. Narration dominates
 at rtf 1.33; rendering is 0.55, and speed, alignment and assembly are close to
 free.
 

@@ -11,11 +11,12 @@ from pathlib import Path
 from typing import Any
 
 from narratr.device import release_cache, select
+from narratr.errors import PipelineError
 from narratr.paths import ROOT, STORE
 from narratr.state import Manifest
 
 
-class NarrationError(Exception):
+class NarrationError(PipelineError):
 	"""Narration cannot proceed as configured."""
 
 
@@ -26,12 +27,20 @@ def _resolve_voice(spec: dict[str, Any]) -> Path:
 			"no voice.reference in scenes.json. Chatterbox Turbo has no built-in "
 			"voice, so point it at a 10s clip or one of the samples in assets/voices/"
 		)
+	# Resolved and contained. `reference` comes from an LLM-written scenes.json,
+	# and an unconstrained path here read any file on the machine as a voice
+	# prompt -- and told you, by its error, whether that file existed.
 	path = Path(reference)
 	if not path.is_absolute():
 		path = ROOT / path
-	if not path.exists():
-		raise NarrationError(f"voice reference not found: {path}")
-	return path
+	resolved = path.resolve()
+	if not resolved.is_relative_to(ROOT.resolve()):
+		raise NarrationError(
+			f"voice.reference must stay inside the project: {reference!r} resolves outside {ROOT}"
+		)
+	if not resolved.is_file():
+		raise NarrationError(f"voice reference not found: {reference}")
+	return resolved
 
 
 def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
@@ -80,9 +89,20 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	spoken = 0.0
 	elapsed = 0.0
 
+	# The plan called for pinning the reference clip *and* the seed, because
+	# both are conditioning inputs. Only the clip was wired: the seed reached
+	# `audio_key` and never the model, so it moved the cache without moving the
+	# output and re-narration produced different audio for identical input.
+	seed = spec.get("voice", {}).get("seed")
+
 	for n, scene_id in enumerate(todo, 1):
 		out = audio_dir / f"{manifest.data['scenes'][scene_id]['audio_key']}.wav"
 		started = time.perf_counter()
+		if seed is not None:
+			# Re-seeded per scene, not once per run: a resumed run must give a
+			# scene the same voice it would have had in a cold one, whatever
+			# else was generated first.
+			torch.manual_seed(seed)
 		wav = model.generate(by_id[scene_id]["narration"], audio_prompt_path=str(reference))
 		took = time.perf_counter() - started
 		seconds = wav.shape[-1] / model.sr

@@ -15,9 +15,25 @@ def test_normalise_strips_punctuation_and_case():
 	assert normalise("don't") == "don't"
 
 
-def test_normalise_empties_unspeakable_tokens():
+def test_normalise_empties_tokens_nobody_speaks():
 	assert normalise("—") == ""
-	assert normalise("36") == ""
+	assert normalise("(") == ""
+
+
+def test_normalise_spells_numbers_rather_than_dropping_them():
+	# Dropping these left Chatterbox speaking audio the aligner had no target
+	# for, so the neighbouring words absorbed it and their timings skewed. The
+	# token also never reached the captions.
+	assert normalise("36") == "thirtysix"
+	assert normalise("2.5") == "twopointfive"
+	assert normalise("1st") == "first"
+	assert normalise("50%") == "fiftypercent"
+	assert normalise("16:9") == "sixteennine"
+
+
+def test_every_token_of_a_numeric_sentence_survives():
+	sentence = "It runs 3 scenes at 0.92 speed in 45s"
+	assert all(normalise(w) for w in sentence.split())
 
 
 def test_timestamp_is_srt_format():

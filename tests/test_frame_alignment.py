@@ -7,7 +7,8 @@ that a stream copy then bakes in.
 
 from __future__ import annotations
 
-from narratr.stitch import FPS, chapter_metadata, frame_aligned
+from narratr.chapters import metadata as chapter_metadata
+from narratr.media import FPS, frame_aligned
 
 
 def test_aligns_to_the_frame_grid():
@@ -47,13 +48,14 @@ def test_video_is_muted_before_concat(monkeypatch):
 	join. Stripping the track is what makes the boundaries exact."""
 	from pathlib import Path
 
-	from narratr import stitch
+	from narratr import media
 
 	captured: list[list[str]] = []
-	monkeypatch.setattr(stitch, "ffmpeg", lambda args, what: captured.append(args))
+	monkeypatch.setattr(media, "ffmpeg", lambda args, what: captured.append(args))
 	monkeypatch.setattr(Path, "rename", lambda self, target: None)
+	monkeypatch.setattr(Path, "unlink", lambda self, missing_ok=False: None)
 
-	stitch.strip_audio(Path("in.mp4"), Path("out.mp4"))
+	media.strip_audio(Path("in.mp4"), Path("out.mp4"))
 
 	assert "-an" in captured[0]
 	assert "copy" in captured[0]

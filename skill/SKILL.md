@@ -78,8 +78,8 @@ coverage that do not exist. Fix and re-validate until clean.
 ## 5. Confirm, then launch
 
 Show the user the coverage report, the scene count, and the estimated runtime.
-**Wait for them to say go.** A full run is hours of compute — this is the last
-cheap moment to catch a bad script.
+**Wait for them to say go.** A run costs roughly twice the finished video's
+length in wall clock — this is the last cheap moment to catch a bad script.
 
 Then:
 

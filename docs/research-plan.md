@@ -379,7 +379,7 @@ matters day to day:
 
 Rendering came in faster than realtime, against an estimate that was wrong by roughly 3×. 1080p30 has headroom; the planned fallback to 24fps and 1600×900 is not needed. Concurrency swept 4 to 12 on a 12-core machine: identical above 6, so Remotion's default needs no tuning.
 
-**Work in short clips.** `examples/brief.scenes.json` is six scenes and runs cold in about two minutes, which is the right unit for iterating. Content addressing means a single edited scene re-renders alone.
+**Work in short clips.** `examples/brief.scenes.json` is six scenes and runs cold in about two and a half minutes, which is the right unit for iterating. Content addressing means a single edited scene re-renders alone.
 
 ---
 
@@ -398,10 +398,10 @@ Rendering came in faster than realtime, against an estimate that was wrong by ro
 
 | Stage | State |
 |---|---|
-| Script engine | working; produced 34 scenes covering all 51 blocks of this document |
+| Script engine | working; produced 34 scenes covering all 51 blocks this document had at the time |
 | Schema + coverage gate | working; rejects dropped blocks, ghost scenes, over-long slides |
 | Block extraction | working, mechanical |
-| Narration | working, benchmarked, resumable |
+| Narration | working, benchmarked; picks up from `store/`, not from the manifest |
 | Playback speed | working, default 0.92 |
 | Alignment | working, word timings + SRT |
 | Scene render | working, prose / diagram / code, Shiki highlighting |
@@ -426,7 +426,12 @@ are done too. What is left is one design gap and one untested claim:
    even spacing when absent. Inferring the cue by matching text after the fact
    does not work: bullets are paraphrases, and a matcher found nothing usable
    for 5 of 18 elements.
-2. **Run a long document.** 51 blocks worked. Nothing longer has been tried.
+2. **Run a long document.** 51 blocks worked once. Nothing longer has been
+   tried — and this document has since grown to 75 leaf blocks, which is why
+   `examples/research-plan.scenes.json` was deleted rather than kept. It still
+   validated, because `source.block_ids` is carried inside the spec rather than
+   re-derived: exactly the circularity `skill/SKILL.md` warns about. Regenerate
+   it by pointing the skill at the document again.
 
 ---
 

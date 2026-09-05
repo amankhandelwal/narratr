@@ -10,7 +10,7 @@ export type CodeProps = {
 	html?: string;
 };
 
-export const Code: React.FC<CodeProps> = ({ heading, code, html }) => {
+export const Code: React.FC<CodeProps> = ({ heading, code, lang, html }) => {
 	const frame = useCurrentFrame();
 	const opacity = interpolate(frame, [0, 14], [0, 1], {
 		extrapolateLeft: "clamp",
@@ -51,6 +51,25 @@ export const Code: React.FC<CodeProps> = ({ heading, code, html }) => {
 				.code pre { margin: 0; background: transparent !important; }
 				.code code { font-family: inherit; font-size: inherit; }
 			`}</style>
+			{/* The language, stated once and quietly. A viewer reads it in the
+			    first second and then never again, so it sits at the panel's
+			    shoulder in the dim, where it cannot compete with the code. */}
+			{lang ? (
+				<div
+					style={{
+						opacity,
+						alignSelf: "flex-end",
+						marginBottom: 12,
+						color: theme.dim,
+						fontFamily: theme.mono,
+						fontSize: 26,
+						letterSpacing: 2,
+						textTransform: "uppercase",
+					}}
+				>
+					{lang}
+				</div>
+			) : null}
 			{html ? (
 				<div className="code" style={panel} dangerouslySetInnerHTML={{ __html: html }} />
 			) : (

@@ -8,11 +8,26 @@ instead of failing at import time.
 from __future__ import annotations
 
 import shutil
+import subprocess
 import sys
+import warnings
 
-from narratr.paths import VOICES
+from narratr.paths import ROOT, VOICES
 
 Check = tuple[str, bool, str]
+
+
+def _node_major() -> int | None:
+	node = shutil.which("node")
+	if not node:
+		return None
+	try:
+		out = subprocess.run(
+			[node, "--version"], capture_output=True, text=True, timeout=10, check=False
+		)
+		return int(out.stdout.strip().lstrip("v").split(".")[0])
+	except (OSError, ValueError, subprocess.TimeoutExpired):
+		return None
 
 
 def collect() -> list[Check]:
@@ -33,7 +48,11 @@ def collect() -> list[Check]:
 		checks.append(("mps acceleration", False, "unknown"))
 
 	try:
-		import perth
+		# perth imports pkg_resources, which warns on every invocation. The
+		# whole point of doctor is a clean readable table.
+		with warnings.catch_warnings():
+			warnings.simplefilter("ignore", UserWarning)
+			import perth
 
 		ok = perth.PerthImplicitWatermarker is not None
 		checks.append(
@@ -46,11 +65,58 @@ def collect() -> list[Check]:
 	except ImportError:
 		checks.append(("chatterbox watermarker", False, "perth not installed"))
 
-	ffmpeg = shutil.which("ffmpeg")
-	checks.append(("ffmpeg", ffmpeg is not None, ffmpeg or "not found"))
+	# Every binary the pipeline actually shells out to. ffprobe was missing:
+	# it is a separate executable from ffmpeg and stitch and intro both need
+	# it. So was npx, which runs both mmdc and the renderer.
+	for binary, fix in (
+		("ffmpeg", "brew install ffmpeg"),
+		("ffprobe", "brew install ffmpeg"),
+		("node", "brew install node"),
+		("npx", "brew install node"),
+	):
+		found = shutil.which(binary)
+		checks.append((binary, found is not None, found or f"not found, run '{fix}'"))
 
-	node = shutil.which("node")
-	checks.append(("node", node is not None, node or "not found"))
+	# Node 20+ per the README. An older one fails deep inside Remotion.
+	node_version = _node_major()
+	checks.append(
+		(
+			"node 20+",
+			node_version is not None and node_version >= 20,
+			f"v{node_version}" if node_version else "unknown",
+		)
+	)
+
+	# The renderer's own dependencies. Without this check a fresh clone gets a
+	# green doctor, spends the whole narration stage, and only then learns the
+	# renderer was never installed.
+	from narratr import icons
+
+	node_modules = ROOT / "render" / "remotion" / "node_modules"
+	checks.append(
+		(
+			"renderer deps",
+			node_modules.is_dir(),
+			"installed" if node_modules.is_dir() else "missing, run 'make setup'",
+		)
+	)
+	pack = icons.installed()
+	checks.append(
+		(
+			"icon pack",
+			pack,
+			f"{len(icons.available())} icons" if pack else "missing, run 'make setup'",
+		)
+	)
+
+	free_gb = shutil.disk_usage(ROOT).free / 1e9
+	checks.append(
+		(
+			"disk space",
+			free_gb >= 5,
+			f"{free_gb:.0f} GB free" if free_gb >= 5 else f"{free_gb:.0f} GB free, want 5+",
+		)
+	)
 
 	voices = sorted(VOICES.glob("*.wav"))
 	checks.append(

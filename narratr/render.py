@@ -13,20 +13,41 @@ import time
 from pathlib import Path
 from typing import Any
 
-from narratr import icons, speed
+from narratr import icons, media, speed
+from narratr.errors import PipelineError
 from narratr.paths import ROOT, STORE
-from narratr.state import Manifest
+from narratr.state import Manifest, atomic_write
 
 REMOTION = ROOT / "render" / "remotion"
-FPS = 30
+
+# Frame rate is owned by media.py so it is defined once for the whole pipeline.
+FPS = media.FPS
+
+# A long scene legitimately renders for minutes; this is a hang detector.
+TIMEOUT = 30 * 60
 
 
-class RenderError(Exception):
+class RenderError(PipelineError):
 	"""Rendering cannot proceed."""
 
 
 def run_remotion(cmd: list[str], cwd: Path, what: str) -> None:
-	result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+	"""Run a node CLI, with a timeout.
+
+	Unbounded, a wedged Puppeteer inside `mmdc` blocks the run forever -- and
+	under `--detach` it does so in an orphaned session with no handle to kill.
+	`--no-install` matters as much: `npx` falls back to fetching a package from
+	the registry when the local one is absent, and `mmdc` is not a name this
+	project owns.
+	"""
+	try:
+		result = subprocess.run(
+			cmd, cwd=cwd, capture_output=True, text=True, timeout=TIMEOUT, check=False
+		)
+	except subprocess.TimeoutExpired:
+		raise RenderError(f"{what} timed out after {TIMEOUT // 60} min")
+	except FileNotFoundError:
+		raise RenderError(f"{what} failed: {cmd[0]} not found. Run 'narratr doctor'")
 	if result.returncode != 0:
 		tail = (result.stderr or result.stdout).strip().splitlines()[-6:]
 		raise RenderError(f"{what} failed:\n  " + "\n  ".join(tail))
@@ -97,27 +118,34 @@ def mermaid_to_svg(source: str, out: Path) -> str:
 	"""
 	if not out.exists():
 		wanted = icons.mermaid_names_in({"mermaid": source})
-		mmd = out.with_suffix(".mmd")
+		# Scratch, deleted on the way out. It used to be written beside the SVG
+		# and never read back or removed, so store/assets grew one per diagram.
+		mmd = out.with_name(f".{out.name}.partial.mmd")
 		mmd.write_text(inline_mermaid_icons(source))
 		tmp = out.with_name(f".{out.name}.partial.svg")
-		run_remotion(
-			[
-				"npx",
-				"mmdc",
-				"-i",
-				str(mmd),
-				"-o",
-				str(tmp),
-				"-b",
-				"transparent",
-				"-c",
-				"mermaid.config.json",
-			],
-			REMOTION,
-			"mermaid",
-		)
-		check_icons_landed(tmp.read_text(), wanted)
-		tmp.rename(out)
+		try:
+			run_remotion(
+				[
+					"npx",
+					"--no-install",
+					"mmdc",
+					"-i",
+					str(mmd),
+					"-o",
+					str(tmp),
+					"-b",
+					"transparent",
+					"-c",
+					"mermaid.config.json",
+				],
+				REMOTION,
+				"mermaid",
+			)
+			check_icons_landed(tmp.read_text(), wanted)
+			tmp.rename(out)
+		finally:
+			mmd.unlink(missing_ok=True)
+			tmp.unlink(missing_ok=True)
 	return out.read_text()
 
 
@@ -141,8 +169,11 @@ def highlight(code: str, lang: str | None, out: Path) -> str:
 			tail = (result.stderr or result.stdout).strip().splitlines()[-4:]
 			raise RenderError("highlight failed:\n  " + "\n  ".join(tail))
 		tmp = out.with_name(f".{out.name}.partial.html")
-		tmp.write_text(result.stdout)
-		tmp.rename(out)
+		try:
+			tmp.write_text(result.stdout)
+			tmp.rename(out)
+		finally:
+			tmp.unlink(missing_ok=True)
 	return out.read_text()
 
 
@@ -192,9 +223,15 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 		print("render: nothing to do")
 		return
 
-	missing = [sid for sid in todo if not manifest.data["scenes"][sid].get("audio")]
+	# `scene_duration` reads the *speech* artifact, not the narration, so that
+	# is what has to exist. Guarding on `audio` let a None speech through and
+	# died with a TypeError two frames deeper, under a message naming the wrong
+	# stage.
+	missing = [sid for sid in todo if not manifest.data["scenes"][sid].get("speech")]
 	if missing:
-		raise RenderError(f"no audio yet for {', '.join(missing[:3])}; run narration first")
+		raise RenderError(
+			f"no timed audio yet for {', '.join(missing[:3])}; run narration and speed first"
+		)
 
 	if not (REMOTION / "node_modules").exists():
 		raise RenderError(f"renderer not installed: run 'npm install' in {REMOTION}")
@@ -228,27 +265,31 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 		duration = scene_duration(entry)
 		props = _props_for(by_id[scene_id], duration, assets, entry["video_key"])
 		props_file = assets / f"{entry['video_key']}.props.json"
-		props_file.write_text(json.dumps(props))
+		atomic_write(props_file, json.dumps(props))
 
 		tmp = out.with_name(f".{out.name}.partial.mp4")
 		started = time.perf_counter()
-		run_remotion(
-			[
-				"npx",
-				"remotion",
-				"render",
-				"src/index.ts",
-				"Scene",
-				str(tmp),
-				f"--props={props_file}",
-				"--codec=h264",
-				"--log=error",
-			],
-			REMOTION,
-			f"render {scene_id}",
-		)
-		took = time.perf_counter() - started
-		tmp.rename(out)
+		try:
+			run_remotion(
+				[
+					"npx",
+					"--no-install",
+					"remotion",
+					"render",
+					"src/index.ts",
+					"Scene",
+					str(tmp),
+					f"--props={props_file}",
+					"--codec=h264",
+					"--log=error",
+				],
+				REMOTION,
+				f"render {scene_id}",
+			)
+			took = time.perf_counter() - started
+			tmp.rename(out)
+		finally:
+			tmp.unlink(missing_ok=True)
 		manifest.mark(scene_id, "video", out.name)
 
 		rendered += duration

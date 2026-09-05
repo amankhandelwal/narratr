@@ -20,15 +20,41 @@ def _slug(title: str) -> str:
 	return SLUG.sub("-", title.lower()).strip("-")[:28] or "section"
 
 
+def _claim(candidate: str, used: set[str]) -> str:
+	"""Return `candidate`, or the first free `<candidate>-<k>` if it is taken.
+
+	Two headings collide whenever they share a slug -- identical text, or two
+	long headings that differ only past the 28-character truncation. The ids
+	then collapse, and because the coverage gate compares *sets*, a whole
+	section can go unmapped while validation still reports full coverage. That
+	makes the gate theatre, which is the one thing `blocks.py` exists to
+	prevent.
+
+	Only the emitted set is consulted, so the result is unique by construction
+	no matter what a slug happens to look like: a disambiguator that a later
+	block would have wanted naturally is itself disambiguated in turn.
+	"""
+	if candidate not in used:
+		used.add(candidate)
+		return candidate
+	k = 2
+	while f"{candidate}-{k}" in used:
+		k += 1
+	claimed = f"{candidate}-{k}"
+	used.add(claimed)
+	return claimed
+
+
 def extract(markdown: str) -> list[dict[str, Any]]:
 	"""Split markdown into leaf blocks with ids stable under re-runs.
 
 	Ids are `<section-slug>-<n>`, so an edit inside one section does not
-	renumber the rest of the document.
+	renumber the rest of the document. Collisions are broken by `_claim`.
 	"""
 	body = FRONTMATTER.sub("", markdown)
 	lines = body.splitlines()
 	blocks: list[dict[str, Any]] = []
+	used: set[str] = set()
 	section = "intro"
 	n = 0
 	i = 0
@@ -54,14 +80,14 @@ def extract(markdown: str) -> list[dict[str, Any]]:
 			i += 1
 			n += 1
 			kind = "diagram" if "mermaid" in opener else "code"
-			blocks.append({"id": f"{section}-{n}", "kind": kind})
+			blocks.append({"id": _claim(f"{section}-{n}", used), "kind": kind})
 			continue
 
 		if line.lstrip().startswith("|"):
 			while i < len(lines) and lines[i].lstrip().startswith("|"):
 				i += 1
 			n += 1
-			blocks.append({"id": f"{section}-{n}", "kind": "table"})
+			blocks.append({"id": _claim(f"{section}-{n}", used), "kind": "table"})
 			continue
 
 		start = i
@@ -77,7 +103,7 @@ def extract(markdown: str) -> list[dict[str, Any]]:
 			n += 1
 			first = lines[start].lstrip()
 			kind = "list" if first.startswith(("-", "*")) or re.match(r"\d+\.", first) else "para"
-			blocks.append({"id": f"{section}-{n}", "kind": kind})
+			blocks.append({"id": _claim(f"{section}-{n}", used), "kind": kind})
 
 	return blocks
 

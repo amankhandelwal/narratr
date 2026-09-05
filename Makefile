@@ -1,4 +1,4 @@
-.PHONY: help setup reset weights doctor validate test fix clean
+.PHONY: help setup reset weights doctor validate demo typecheck test fix clean
 
 # Default target
 help:
@@ -9,8 +9,10 @@ help:
 	@echo "  make doctor     - Check this machine can actually render"
 	@echo ""
 	@echo "Development commands:"
-	@echo "  make validate   - Validate examples/brief.scenes.json against the schema"
-	@echo "  make test       - Run linting, type checks, and tests"
+	@echo "  make validate   - Validate every example spec against the schema"
+	@echo "  make demo       - Render examples/brief.scenes.json end to end"
+	@echo "  make typecheck  - Run mypy and the renderer's tsc"
+	@echo "  make test       - Run linting, type checks, and tests (Python + renderer)"
 	@echo "  make fix        - Auto-fix linting and formatting issues"
 	@echo "  make clean      - Clean up cache files and test artifacts"
 	@echo ""
@@ -41,9 +43,33 @@ weights:
 doctor:
 	@uv run narratr doctor
 
-# Validate the example spec
+# Validate every spec we ship. A broken example is a broken tutorial.
 validate:
-	@uv run narratr validate examples/brief.scenes.json
+	@for spec in examples/*.json skill/example.scenes.json; do \
+		echo "$$spec"; \
+		uv run narratr validate "$$spec" || exit 1; \
+	done
+	@echo "\n✓ All specs valid"
+
+# Render the short example end to end. The real smoke test: it exercises
+# narration, alignment, the renderer, and stitching.
+demo:
+	@echo "Rendering examples/brief.scenes.json..."
+	@uv run narratr render examples/brief.scenes.json
+
+# Type checks only, both sides
+typecheck:
+	@echo "Running mypy type checks..."
+	@uv run mypy narratr/
+	@echo "✓ Type checks passed"
+	@echo "\nRunning renderer type checks..."
+	@if [ -d render/remotion/node_modules ]; then \
+		(cd render/remotion && npm run --silent typecheck) \
+			&& echo "✓ Renderer type checks passed" \
+			|| { echo "❌ Renderer type checks failed"; exit 1; }; \
+	else \
+		echo "⚠️  Skipped: render/remotion/node_modules is missing. Run 'make setup'"; \
+	fi
 
 # Run linting, type checks, and tests
 test:
@@ -61,6 +87,21 @@ test:
 	@echo "✓ Type checks passed"
 	@echo "\nRunning all tests..."
 	@uv run pytest tests/ -v
+	@echo "\nRunning renderer type checks..."
+	@if [ -d render/remotion/node_modules ]; then \
+		(cd render/remotion && npm run --silent typecheck) \
+			&& echo "✓ Renderer type checks passed" \
+			|| { echo "❌ Renderer type checks failed"; exit 1; }; \
+	else \
+		echo "⚠️  Skipped: render/remotion/node_modules is missing. Run 'make setup'"; \
+	fi
+	@echo "\nRunning renderer tests..."
+	@if [ -d render/remotion/node_modules ]; then \
+		(cd render/remotion && npm test --silent) \
+			|| { echo "❌ Renderer tests failed"; exit 1; }; \
+	else \
+		echo "⚠️  Skipped: render/remotion/node_modules is missing. Run 'make setup'"; \
+	fi
 	@echo "\n✓ All checks passed!"
 
 # Auto-fix linting and formatting issues

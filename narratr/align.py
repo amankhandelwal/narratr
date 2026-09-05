@@ -16,7 +16,9 @@ from typing import Any
 
 from narratr import speed
 from narratr.device import release_cache, select
+from narratr.errors import PipelineError
 from narratr.paths import STORE
+from narratr.spoken import say
 from narratr.state import Manifest, atomic_write
 
 # MMS_FA's vocabulary is lowercase latin plus apostrophe.
@@ -26,13 +28,19 @@ MAX_CUE_WORDS = 8
 MAX_CUE_SECONDS = 3.5
 
 
-class AlignmentError(Exception):
+class AlignmentError(PipelineError):
 	"""Alignment cannot proceed."""
 
 
 def normalise(word: str) -> str:
-	"""Reduce a display word to what the aligner's vocabulary accepts."""
-	return UNSPEAKABLE.sub("", word.lower())
+	"""Reduce a display word to what the aligner's vocabulary accepts.
+
+	Numbers and symbols are spelled out first. Stripping them instead dropped
+	the token from the alignment target while Chatterbox went on speaking it,
+	so the neighbouring words swallowed that audio and their timings skewed --
+	and the token never reached the captions. See `narratr/spoken.py`.
+	"""
+	return UNSPEAKABLE.sub("", say(word).lower())
 
 
 def _timestamp(seconds: float) -> str:
@@ -114,7 +122,11 @@ def _align_one(
 			"word": display,
 			"start": round(span[0].start * seconds_per_frame, 3),
 			"end": round(span[-1].end * seconds_per_frame, 3),
-			"score": round(float(span[0].score), 3),
+			# Mean over the word's tokens, not span[0]. The first token's
+			# score is one character's confidence; reporting it as the word's
+			# made ordinary words look catastrophic ("worst score 0.00" on a
+			# correctly aligned scene) and hid a genuinely weak one.
+			"score": round(sum(float(t.score) for t in span) / len(span), 3),
 		}
 		# strict: one span per speakable word, or the alignment is wrong
 		for (display, _), span in zip(speakable, spans, strict=True)
@@ -129,7 +141,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	timings_dir = STORE / "timings"
 	remaining = []
 	for scene_id in todo:
-		cached = timings_dir / f"{manifest.data['scenes'][scene_id]['speech_key']}.json"
+		cached = timings_dir / f"{manifest.data['scenes'][scene_id]['align_key']}.json"
 		if cached.exists():
 			manifest.mark(scene_id, "aligned", cached.name)
 		else:
@@ -138,12 +150,14 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 
 	if not todo:
 		print("align: nothing to do")
-		write_captions(spec, manifest, run_dir)
 		return
 
-	missing = [sid for sid in todo if not manifest.data["scenes"][sid].get("audio")]
+	# `speed.path_for` reads the speech artifact, so that is what must exist.
+	missing = [sid for sid in todo if not manifest.data["scenes"][sid].get("speech")]
 	if missing:
-		raise AlignmentError(f"no audio yet for {', '.join(missing[:3])}; run narration first")
+		raise AlignmentError(
+			f"no timed audio yet for {', '.join(missing[:3])}; run narration and speed first"
+		)
 
 	# Imported here, as in narrate: doctor should not pay for torch.
 	import torchaudio
@@ -164,7 +178,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 
 	for n, scene_id in enumerate(todo, 1):
 		entry = manifest.data["scenes"][scene_id]
-		out = timings_dir / f"{entry['speech_key']}.json"
+		out = timings_dir / f"{entry['align_key']}.json"
 		wav_path = speed.path_for(entry)
 		started = time.perf_counter()
 		words = _align_one(
@@ -190,8 +204,6 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	if spoken:
 		print(f"✓ align: {spoken:.0f}s audio in {elapsed:.0f}s (rtf {elapsed / spoken:.2f})")
 
-	write_captions(spec, manifest, run_dir)
-
 
 def write_captions(
 	spec: dict[str, Any],
@@ -208,6 +220,11 @@ def write_captions(
 
 	`offset` is where the first scene starts, which is the length of the title
 	card. Without it every cue would be four seconds early for the whole video.
+
+	Only `stitch` calls this. `align` used to call it as well, with no offset
+	and no measured durations, writing a captions file that was wrong in both
+	ways and then overwritten -- except when stitch never ran, which is every
+	`--only` run.
 	"""
 	timings_dir = STORE / "timings"
 	cues: list[dict[str, Any]] = []
@@ -216,6 +233,11 @@ def write_captions(
 		entry = manifest.data["scenes"][scene["id"]]
 		aligned = entry.get("aligned")
 		if not aligned:
+			# No cues for this scene, but the clock still runs through it. The
+			# old `continue` skipped the offset too, so every later cue landed
+			# early by this scene's whole duration. `durations` already carries
+			# the right length whenever stitch is the caller.
+			offset += (durations or {}).get(scene["id"], 0.0)
 			continue
 		payload = json.loads((timings_dir / aligned).read_text())
 		shifted = [

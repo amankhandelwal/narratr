@@ -60,7 +60,7 @@ export const Prose: React.FC<ProseProps> = ({ heading, bullets, icons }) => {
 				const struck = state === "struck";
 				return (
 					<div
-						key={text}
+						key={`${i}-${text}`}
 						style={{
 							display: "flex",
 							alignItems: "center",

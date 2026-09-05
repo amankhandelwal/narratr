@@ -10,153 +10,100 @@ segment's edit list compensates for. A stream copy cannot carry per-file edit
 lists, so from the second segment onward that priming became real audio and the
 picture ran ahead by roughly 36 ms per join -- 229 ms by the sixth scene, and
 linear in scene count.
+
+The ffmpeg primitives live in `narratr/media.py` and chapter generation in
+`narratr/chapters.py`; what is left here is assembly.
 """
 
 from __future__ import annotations
 
-import re
 import shutil
-import subprocess
 from pathlib import Path
 from typing import Any
 
-from narratr import speed
+from narratr import chapters, speed
+from narratr import intro as title_card
+from narratr.align import write_captions
+from narratr.media import (
+	FPS,
+	MediaError,
+	check_audible,
+	concat_list,
+	ffmpeg,
+	frame_aligned,
+	pad_to,
+	probe_duration,
+	strip_audio,
+)
 from narratr.paths import STORE
 from narratr.state import Manifest, digest
 
-# Must match FPS in render/remotion/src/Root.tsx.
-FPS = 30
+__all__ = ["FPS", "StitchError", "preview", "run"]
 
 
-class StitchError(Exception):
+class StitchError(MediaError):
 	"""Assembly cannot proceed."""
 
 
-def ffmpeg(args: list[str], what: str) -> None:
-	result = subprocess.run(["ffmpeg", "-y", "-v", "error", *args], capture_output=True, text=True)
-	if result.returncode != 0:
-		tail = (result.stderr or result.stdout).strip().splitlines()[-5:]
-		raise StitchError(f"{what} failed:\n  " + "\n  ".join(tail))
+def _measured(padded: Path, scene_id: str) -> float:
+	"""Silence check plus duration, recorded beside the padded file.
 
-
-def probe_duration(path: Path) -> float:
-	out = subprocess.run(
-		["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
-		capture_output=True,
-		text=True,
-		check=True,
-	)
-	return float(out.stdout.strip())
-
-
-def frame_aligned(seconds: float, fps: int = FPS) -> float:
-	"""The exact length the renderer will produce for this scene.
-
-	Remotion rounds to whole frames, so this is what the video will be. Padding
-	the audio to match is what makes the two lengths identical and the drift
-	exactly zero rather than a per-scene coin flip.
+	`volumedetect` decodes the whole clip, and it ran on every stitch even when
+	the padded audio was already cached. The measurement cannot change once the
+	bytes are fixed, so it is cached with them.
 	"""
-	return max(1, round(seconds * fps)) / fps
+	sidecar = padded.with_suffix(".db")
+	if not sidecar.exists():
+		check_audible(padded, scene_id)
+		sidecar.write_text("ok")
+	return probe_duration(padded)
 
 
-def pad_to(src: Path, target: float, out: Path) -> None:
-	"""Copy audio, silence-padded (or trimmed) to exactly `target` seconds."""
-	tmp = out.with_name(f".{out.name}.partial.wav")
-	ffmpeg(
-		["-i", str(src), "-af", "apad", "-t", f"{target:.6f}", "-c:a", "pcm_f32le", str(tmp)],
-		f"pad {src.name}",
-	)
-	tmp.rename(out)
+def preview(manifest: Manifest, scene_id: str, run_dir: Path) -> Path | None:
+	"""Mux one scene's picture with its own narration, for --only.
 
+	The rendered scene mp4 carries Remotion's silent track, so the artifact
+	--only pointed at could not be listened to -- against a working agreement
+	that says to look at the artifact rather than the exit code.
 
-def strip_audio(src: Path, out: Path) -> None:
-	"""Drop the renderer's silent track, keeping the video stream untouched.
-
-	Remotion writes a silent AAC track into every scene. AAC encoder padding
-	makes that track ~50ms longer than the picture, and a container's duration
-	is the longest stream in it. The concat demuxer advances the timeline by
-	container duration, so each join inserted a gap and the picture drifted late
-	-- the same failure as the audio side, arriving from the other direction.
+	Kept in its own directory. A scene id is `^[a-z0-9_-]+$`, so `video` is a
+	legal one and `<scene_id>.mp4` in the run root would have overwritten the
+	finished video with a single scene. It also keeps an iteration artifact out
+	of the directory holding the deliverable.
 	"""
+	entry = manifest.data["scenes"].get(scene_id, {})
+	if not (entry.get("video") and entry.get("speech")):
+		return None
+	preview_dir = run_dir / "preview"
+	preview_dir.mkdir(parents=True, exist_ok=True)
+	out = preview_dir / f"{scene_id}.mp4"
 	tmp = out.with_name(f".{out.name}.partial.mp4")
-	ffmpeg(["-i", str(src), "-an", "-c:v", "copy", str(tmp)], f"strip audio {src.name}")
-	tmp.rename(out)
-
-
-def _concat_list(paths: list[Path], out: Path) -> None:
-	out.write_text("".join(f"file '{p.resolve()}'\n" for p in paths))
-
-
-# ---------------------------------------------------------------- silence
-
-# Digital silence reports around -91 dB; real narration sits near -27 dB.
-SILENCE_DB = -80.0
-
-MEAN_VOLUME = re.compile(r"mean_volume:\s*(-?\d+(?:\.\d+)?) dB")
-
-
-def parse_mean_volume(ffmpeg_stderr: str) -> float | None:
-	"""Pull mean_volume out of ffmpeg's volumedetect output."""
-	found = MEAN_VOLUME.search(ffmpeg_stderr)
-	return float(found.group(1)) if found else None
-
-
-def mean_volume(path: Path) -> float | None:
-	result = subprocess.run(
-		["ffmpeg", "-hide_banner", "-i", str(path), "-af", "volumedetect", "-f", "null", "-"],
-		capture_output=True,
-		text=True,
-	)
-	return parse_mean_volume(result.stderr)
-
-
-def check_audible(path: Path, scene_id: str) -> None:
-	"""Refuse to pass on audio that contains only silence.
-
-	A silent track has a codec, a duration and a bitrate, so every structural
-	check passes it. This is the one that does not.
-	"""
-	level = mean_volume(path)
-	if level is None:
-		raise StitchError(f"{scene_id}: could not measure audio in {path.name}")
-	if level < SILENCE_DB:
-		raise StitchError(f"{scene_id}: audio is silent ({level:.1f} dB)")
-
-
-# ---------------------------------------------------------------- chapters
-
-
-def chapter_metadata(spec: dict[str, Any], durations: dict[str, float], intro: float = 0.0) -> str:
-	"""An ffmpeg metadata file marking each scene as a chapter.
-
-	The title card is a chapter of its own, so scrubbing to the first scene
-	means the first scene rather than four seconds of music.
-	"""
-	lines = [";FFMETADATA1"]
-	start = 0.0
-
-	def chapter(begin: float, end: float, title: str) -> list[str]:
-		return [
-			"[CHAPTER]",
-			"TIMEBASE=1/1000",
-			f"START={round(begin * 1000)}",
-			# One millisecond short so chapters do not overlap by a tick.
-			f"END={max(round(end * 1000) - 1, round(begin * 1000))}",
-			f"title={title}",
-		]
-
-	if intro > 0:
-		lines += chapter(0.0, intro, spec["source"]["title"])
-		start = intro
-
-	for scene in spec["scenes"]:
-		end = start + durations[scene["id"]]
-		lines += chapter(start, end, scene.get("heading") or scene["id"])
-		start = end
-	return "\n".join(lines) + "\n"
-
-
-# ---------------------------------------------------------------- assembly
+	try:
+		ffmpeg(
+			[
+				"-i",
+				str(STORE / "video" / entry["video"]),
+				"-i",
+				str(speed.path_for(entry)),
+				"-map",
+				"0:v:0",
+				"-map",
+				"1:a:0",
+				"-c:v",
+				"copy",
+				"-c:a",
+				"aac",
+				"-b:a",
+				"192k",
+				"-shortest",
+				str(tmp),
+			],
+			f"preview {scene_id}",
+		)
+		tmp.rename(out)
+	finally:
+		tmp.unlink(missing_ok=True)
+	return out
 
 
 def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
@@ -164,13 +111,12 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	incomplete = [
 		s["id"]
 		for s in scenes
-		if not (
-			manifest.data["scenes"][s["id"]].get("video")
-			and manifest.data["scenes"][s["id"]].get("audio")
-		)
+		if not all(manifest.data["scenes"][s["id"]].get(k) for k in ("video", "audio", "aligned"))
 	]
 	if incomplete:
-		raise StitchError(f"not ready: {', '.join(incomplete[:3])} missing audio or video")
+		# `aligned` is checked too: without it a scene contributes no cues and
+		# the captions for everything after it used to shift early.
+		raise StitchError(f"not ready: {', '.join(incomplete[:3])} missing audio, video or timings")
 
 	padded_dir = STORE / "padded"
 	padded_dir.mkdir(parents=True, exist_ok=True)
@@ -190,7 +136,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 		padded = padded_dir / f"{entry['speech_key']}.{FPS}.wav"
 		if not padded.exists():
 			pad_to(source, target, padded)
-		check_audible(padded, scene["id"])
+		_measured(padded, scene["id"])
 
 		muted = mute_dir / f"{entry['video_key']}.mp4"
 		if not muted.exists():
@@ -202,8 +148,6 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 
 	# Built after the scenes so its audio can be matched to theirs: the concat
 	# demuxer copies streams and will not join a card at a different rate.
-	from narratr import intro as title_card
-
 	intro_video, intro_audio, intro_duration = title_card.build(
 		spec["source"]["title"], reference=audio_parts[0]
 	)
@@ -213,70 +157,80 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	print(f"  intro: {intro_duration:.1f}s title card")
 
 	# The assembled file is content-addressed too, so an unchanged re-run copies
-	# rather than re-encoding the whole narration.
+	# rather than re-encoding the whole narration. Scene ids and headings are in
+	# the key because they name the chapters: renaming a scene with no heading
+	# changed the chapter titles but no per-scene key, so the cached mp4 shipped
+	# with the old ones.
 	final_key = digest(
 		[
-			[e["speech_key"], e["video_key"]]
-			for e in (manifest.data["scenes"][s["id"]] for s in scenes)
+			[s["id"], s.get("heading"), e["speech_key"], e["video_key"]]
+			for s, e in ((s, manifest.data["scenes"][s["id"]]) for s in scenes)
 		]
-		+ [intro_video.stem]
+		+ [intro_video.stem, spec["source"]["title"]]
 	)
 	assembled = STORE / "final" / f"{final_key}.mp4"
 	assembled.parent.mkdir(parents=True, exist_ok=True)
 
+	# Written whatever happens, so a cached assembly still leaves a run
+	# directory that describes itself.
+	chapter_file = run_dir / "chapters.txt"
+	chapter_file.write_text(chapters.metadata(spec, durations, intro=intro_duration))
+
 	if not assembled.exists():
-		audio_list = run_dir / "audio.txt"
-		video_list = run_dir / "video.txt"
-		_concat_list(audio_parts, audio_list)
-		_concat_list(video_parts, video_list)
+		# Scratch, not output: these are ffmpeg inputs and full uncompressed
+		# intermediates. They used to sit in the run directory the user browses.
+		scratch = STORE / "tmp"
+		scratch.mkdir(parents=True, exist_ok=True)
+		audio_list = scratch / f"{final_key}.audio.txt"
+		video_list = scratch / f"{final_key}.video.txt"
+		concat_list(audio_parts, audio_list)
+		concat_list(video_parts, video_list)
 
-		track = run_dir / "narration.wav"
-		ffmpeg(
-			["-f", "concat", "-safe", "0", "-i", str(audio_list), "-c", "copy", str(track)],
-			"concat audio",
-		)
-		silent = run_dir / "silent.mp4"
-		ffmpeg(
-			["-f", "concat", "-safe", "0", "-i", str(video_list), "-c", "copy", str(silent)],
-			"concat video",
-		)
-
-		chapters = run_dir / "chapters.txt"
-		chapters.write_text(chapter_metadata(spec, durations, intro=intro_duration))
-
+		track = scratch / f"{final_key}.narration.wav"
+		silent = scratch / f"{final_key}.silent.mp4"
 		tmp = assembled.with_name(f".{assembled.name}.partial.mp4")
-		# One audio encode over the whole timeline: no per-segment priming to
-		# accumulate. Streams are named explicitly because the rendered video
-		# carries its own silent track.
-		ffmpeg(
-			[
-				"-i",
-				str(silent),
-				"-i",
-				str(track),
-				"-i",
-				str(chapters),
-				"-map",
-				"0:v:0",
-				"-map",
-				"1:a:0",
-				"-map_metadata",
-				"2",
-				"-c:v",
-				"copy",
-				"-c:a",
-				"aac",
-				"-b:a",
-				"192k",
-				"-movflags",
-				"+faststart",
-				str(tmp),
-			],
-			"assemble",
-		)
-		tmp.rename(assembled)
-		track.unlink(missing_ok=True)
-		silent.unlink(missing_ok=True)
+		try:
+			ffmpeg(
+				["-f", "concat", "-safe", "0", "-i", str(audio_list), "-c", "copy", str(track)],
+				"concat audio",
+			)
+			ffmpeg(
+				["-f", "concat", "-safe", "0", "-i", str(video_list), "-c", "copy", str(silent)],
+				"concat video",
+			)
+			# One audio encode over the whole timeline: no per-segment priming to
+			# accumulate. Streams are named explicitly because the rendered video
+			# carries its own silent track.
+			ffmpeg(
+				[
+					"-i",
+					str(silent),
+					"-i",
+					str(track),
+					"-i",
+					str(chapter_file),
+					"-map",
+					"0:v:0",
+					"-map",
+					"1:a:0",
+					"-map_metadata",
+					"2",
+					"-c:v",
+					"copy",
+					"-c:a",
+					"aac",
+					"-b:a",
+					"192k",
+					"-movflags",
+					"+faststart",
+					str(tmp),
+				],
+				"assemble",
+			)
+			tmp.rename(assembled)
+		finally:
+			for scratch_file in (track, silent, audio_list, video_list, tmp):
+				scratch_file.unlink(missing_ok=True)
 
 	final = run_dir / "video.mp4"
 	final.unlink(missing_ok=True)
@@ -286,7 +240,5 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 		shutil.copy(assembled, final)
 
 	print(f"✓ stitch: {probe_duration(final):.0f}s, {len(scenes) + 1} chapters -> {final.name}")
-
-	from narratr.align import write_captions
 
 	write_captions(spec, manifest, run_dir, durations=durations, offset=intro_duration)
