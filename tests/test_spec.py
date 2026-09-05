@@ -90,3 +90,23 @@ def test_run_id_is_stable():
 
 def test_summarise_mentions_scene_count():
 	assert "3 scenes" in summarise(load())
+
+
+def test_renderer_source_is_part_of_the_video_key(monkeypatch, tmp_path):
+	"""Changing a colour or a layout must invalidate cached videos.
+
+	Without this the pipeline reports "nothing to do" and ships the old look —
+	which happened, and cost a confusing debugging round.
+	"""
+	from narratr import state
+
+	spec = load()
+	scene = spec["scenes"][0]
+	before = state.video_key(scene, spec)
+
+	monkeypatch.setattr(state, "RENDERER_SOURCES", ())
+	state.renderer_digest.cache_clear()
+	after = state.video_key(scene, spec)
+	state.renderer_digest.cache_clear()
+
+	assert before != after

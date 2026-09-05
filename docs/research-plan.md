@@ -174,6 +174,8 @@ flowchart TD
     class H out
 ```
 
+**Palette.** Dark slate ground from [archify](https://github.com/tt-a1i/archify) — `#020617` with `#94a3b8` for secondary text and six 400-level accents. Colour separates rather than decorates: one accent per bullet so the eye tracks the reveal, and a rotation across diagram nodes keyed to the reveal beat, so nodes that arrive together share a colour.
+
 **Diagram animation, concretely.** Mermaid emits an SVG where every node is `g.node[id]` and every edge is `g.edgePath`. Claude emits a `revealSteps` array grouping those ids into beats. Remotion interpolates opacity per group across the scene's duration. No third-party service.
 
 **Render per scene, concat after.** Remotion slows down on very long single compositions, so scene-sized renders are the safe unit regardless of total length. Per-scene output is also what makes a run resumable and what lets a single edited scene re-render alone.

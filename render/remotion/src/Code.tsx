@@ -1,6 +1,6 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
-import { theme } from "./theme";
+import { accent, theme } from "./theme";
 
 export type CodeProps = {
 	heading?: string;
@@ -22,10 +22,11 @@ export const Code: React.FC<CodeProps> = ({ heading, code, html }) => {
 		margin: 0,
 		padding: 40,
 		borderRadius: 16,
-		backgroundColor: "#1E2229",
-		border: `2px solid ${theme.accent}`,
+		backgroundColor: theme.panel,
+		border: `1px solid ${theme.panelBorder}`,
+		borderLeft: `6px solid ${accent(1)}`,
 		color: theme.fg,
-		fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+		fontFamily: theme.mono,
 		fontSize: 42,
 		lineHeight: 1.5,
 		whiteSpace: "pre-wrap",
@@ -42,7 +43,7 @@ export const Code: React.FC<CodeProps> = ({ heading, code, html }) => {
 			}}
 		>
 			{heading ? (
-				<div style={{ color: theme.dim, fontSize: 34, marginBottom: 40 }}>{heading}</div>
+				<div style={{ color: theme.muted, fontSize: 34, marginBottom: 40 }}>{heading}</div>
 			) : null}
 			{/* Shiki emits its own <pre>, so the panel styling is applied to a
 			    wrapper and the inner element is flattened. */}

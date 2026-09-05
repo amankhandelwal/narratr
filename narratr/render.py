@@ -41,7 +41,18 @@ def mermaid_to_svg(source: str, out: Path) -> str:
 		mmd.write_text(source)
 		tmp = out.with_name(f".{out.name}.partial.svg")
 		_run(
-			["npx", "mmdc", "-i", str(mmd), "-o", str(tmp), "-b", "transparent", "-t", "dark"],
+			[
+				"npx",
+				"mmdc",
+				"-i",
+				str(mmd),
+				"-o",
+				str(tmp),
+				"-b",
+				"transparent",
+				"-c",
+				"mermaid.config.json",
+			],
 			REMOTION,
 			"mermaid",
 		)

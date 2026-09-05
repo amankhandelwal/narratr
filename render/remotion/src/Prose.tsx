@@ -1,6 +1,6 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
-import { beatAt, theme } from "./theme";
+import { accent, beatAt, theme } from "./theme";
 
 export type ProseProps = {
 	heading: string;
@@ -30,11 +30,12 @@ export const Prose: React.FC<ProseProps> = ({ heading, bullets }) => {
 				backgroundColor: theme.bg,
 				fontFamily: theme.font,
 				padding: 96,
+				gap: 26,
 				justifyContent: "center",
 			}}
 		>
 			{/* Headline small, content big: the headline is rarely the point. */}
-			<div style={{ color: theme.dim, fontSize: 34, opacity: fade(0), marginBottom: 40 }}>
+			<div style={{ color: theme.muted, fontSize: 34, opacity: fade(0), marginBottom: 44 }}>
 				{heading}
 			</div>
 			{bullets.map((text, i) => {
@@ -43,14 +44,27 @@ export const Prose: React.FC<ProseProps> = ({ heading, bullets }) => {
 					<div
 						key={text}
 						style={{
-							color: theme.fg,
-							fontSize: 76,
-							lineHeight: 1.35,
+							display: "flex",
+							alignItems: "center",
+							gap: 28,
 							opacity: fade(start),
 							transform: `translateY(${rise(start)}px)`,
 						}}
 					>
-						{text}
+						{/* A short accent rule rather than a bullet glyph: it marks
+						    the line without competing with the words. */}
+						<span
+							style={{
+								width: 10,
+								height: 54,
+								borderRadius: 5,
+								backgroundColor: accent(i),
+								flexShrink: 0,
+							}}
+						/>
+						<span style={{ color: theme.fg, fontSize: 76, lineHeight: 1.35 }}>
+							{text}
+						</span>
 					</div>
 				);
 			})}

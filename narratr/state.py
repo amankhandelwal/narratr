@@ -11,8 +11,11 @@ import hashlib
 import json
 import os
 import time
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
+
+from narratr.paths import ROOT, STORE
 
 
 def atomic_write(path: Path, payload: str) -> None:
@@ -41,6 +44,23 @@ def audio_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 # audio key, because the scene's length comes from it.
 VISUAL_FIELDS = ("type", "heading", "bullets", "mermaid", "revealSteps", "code", "lang")
 
+# The renderer's own source counts as an input. Without this, changing a colour
+# or a layout leaves every cached video stale and the pipeline reports nothing
+# to do -- which is exactly what happened when the palette changed.
+RENDERER_SOURCES = ("render/remotion/src", "render/remotion/mermaid.config.json")
+
+
+@lru_cache(maxsize=1)
+def renderer_digest() -> str:
+	parts: list[str] = []
+	for entry in RENDERER_SOURCES:
+		path = ROOT / entry
+		files = sorted(path.rglob("*")) if path.is_dir() else [path]
+		for file in files:
+			if file.is_file():
+				parts.append(f"{file.relative_to(ROOT)}:{file.read_text()}")
+	return _digest(parts)
+
 
 def video_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 	"""What the picture depends on.
@@ -48,7 +68,9 @@ def video_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 	Keyed separately from audio so editing a diagram re-renders the video and
 	reuses the narration, and editing narration does both.
 	"""
-	return _digest([audio_key(scene, spec)] + [scene.get(field) for field in VISUAL_FIELDS])
+	return _digest(
+		[audio_key(scene, spec), renderer_digest()] + [scene.get(field) for field in VISUAL_FIELDS]
+	)
 
 
 def run_id_for(spec: dict[str, Any]) -> str:
@@ -116,6 +138,14 @@ class Manifest:
 			if entry.get("video_key") != fresh_video:
 				entry["video_key"] = fresh_video
 				entry["video"] = None
+
+			# A manifest that claims work is done while the artifact is gone
+			# leaves the pipeline reporting "nothing to do" and producing a
+			# stale video. Trust the filesystem over the record.
+			for stage, folder in (("audio", "audio"), ("aligned", "timings"), ("video", "video")):
+				name = entry.get(stage)
+				if name and not (STORE / folder / name).exists():
+					entry[stage] = None
 		self.commit()
 
 	def commit(self) -> None:

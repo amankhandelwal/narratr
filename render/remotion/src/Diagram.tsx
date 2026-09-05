@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
-import { beatAt, theme } from "./theme";
+import { accent, beatAt, theme } from "./theme";
 
 export type DiagramProps = {
 	heading?: string;
@@ -52,8 +52,13 @@ export const Diagram: React.FC<DiagramProps> = ({ heading, svg, revealSteps }) =
 
 		revealSteps.forEach((group, beat) => {
 			for (const id of group) {
+				const node = `.diagram g.node[id*="flowchart-${id}-"]`;
+				lines.push(`${node} { opacity: ${opacityAt(beat)} }`);
+				// Colour follows the reveal, so each beat is visually distinct
+				// and the eye can tell which nodes arrived together.
 				lines.push(
-					`.diagram g.node[id*="flowchart-${id}-"] { opacity: ${opacityAt(beat)} }`,
+					`${node} rect, ${node} polygon, ${node} circle, ${node} path ` +
+						`{ stroke: ${accent(beat)} !important; stroke-width: 2.5px !important }`,
 				);
 			}
 		});
@@ -76,7 +81,7 @@ export const Diagram: React.FC<DiagramProps> = ({ heading, svg, revealSteps }) =
 			style={{ backgroundColor: theme.bg, fontFamily: theme.font, padding: 96 }}
 		>
 			{heading ? (
-				<div style={{ color: theme.dim, fontSize: 34, marginBottom: 24 }}>{heading}</div>
+				<div style={{ color: theme.muted, fontSize: 34, marginBottom: 24 }}>{heading}</div>
 			) : null}
 			<style>{rules}</style>
 			<div

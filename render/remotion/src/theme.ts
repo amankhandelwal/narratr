@@ -1,12 +1,43 @@
-// Dark ground so the slide never outshines the speaker's voice, per the
-// presentation rules in ~/obsidian-home/Claude Rules/presentation.md.
+// Palette from archify (github.com/tt-a1i/archify), dark theme. Slate ground
+// with 400-level accents, which stay legible on near-black without glaring.
+//
+// Colour is used to separate things, never to decorate: one accent per bullet
+// so the eye can track the reveal, and a rotation across diagram nodes so the
+// stages of a flow are distinguishable at a glance.
 export const theme = {
-	bg: "#14161A",
-	fg: "#F2F3F5",
-	dim: "#8A9099",
-	accent: "#D9945F",
+	bg: "#020617",
+	panel: "#0f172a",
+	panelBorder: "#1e293b",
+	fg: "#ffffff",
+	muted: "#94a3b8",
+	dim: "#475569",
+	line: "#64748b",
 	font: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+	mono: 'Menlo, Monaco, "Courier New", monospace',
 } as const;
+
+/** Accent rotation. Ordered so adjacent entries stay distinguishable. */
+export const ACCENTS = [
+	"#22d3ee", // cyan
+	"#34d399", // emerald
+	"#a78bfa", // violet
+	"#fbbf24", // amber
+	"#fb7185", // rose
+	"#fb923c", // orange
+] as const;
+
+/** Matching translucent fills, for shapes that need a body as well as an edge. */
+export const ACCENT_FILLS = [
+	"rgba(8, 51, 68, 0.4)",
+	"rgba(6, 78, 59, 0.4)",
+	"rgba(76, 29, 149, 0.4)",
+	"rgba(120, 53, 15, 0.3)",
+	"rgba(136, 19, 55, 0.4)",
+	"rgba(251, 146, 60, 0.3)",
+] as const;
+
+export const accent = (i: number) => ACCENTS[i % ACCENTS.length];
+export const accentFill = (i: number) => ACCENT_FILLS[i % ACCENT_FILLS.length];
 
 /** Reveal beats across the scene, leaving a beat of settle at the end. */
 export const beatAt = (index: number, total: number, durationInFrames: number) => {
