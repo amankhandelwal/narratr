@@ -151,6 +151,23 @@ def speech_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 	return digest([audio_key(scene, spec), spec.get("voice", {}).get("speed", DEFAULT_SPEED)])
 
 
+# The aligner's own source decides where every word lands, exactly as the
+# renderer's source decides what a frame looks like. Without this, changing how
+# text is normalised leaves every cached timings file stale while the pipeline
+# reports nothing to do -- the same bug as RENDERER_SOURCES, one stage over.
+ALIGNER_SOURCES = ("narratr/align.py", "narratr/spoken.py")
+
+
+@lru_cache(maxsize=1)
+def aligner_digest() -> str:
+	return digest([f"{name}:{(ROOT / name).read_text()}" for name in ALIGNER_SOURCES])
+
+
+def align_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
+	"""Narration timings: the audio that ships, plus how it is aligned."""
+	return digest([speech_key(scene, spec), aligner_digest()])
+
+
 def video_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 	"""What the picture depends on.
 
@@ -218,6 +235,7 @@ class Manifest:
 				s["id"]: {
 					"audio_key": audio_key(s, spec),
 					"speech_key": speech_key(s, spec),
+					"align_key": align_key(s, spec),
 					"video_key": video_key(s, spec),
 					"audio": None,
 					"speech": None,
@@ -255,15 +273,18 @@ class Manifest:
 			)
 			fresh_audio = audio_key(scene, spec)
 			fresh_speech = speech_key(scene, spec)
+			fresh_align = align_key(scene, spec)
 			fresh_video = video_key(scene, spec)
 			if entry.get("audio_key") != fresh_audio:
 				entry["audio_key"] = fresh_audio
 				entry["audio"] = None
 			if entry.get("speech_key") != fresh_speech:
-				# Timings and picture are measured from the sped audio, so a
-				# speed change invalidates both -- but never the narration.
+				# The picture is measured from the sped audio, so a speed
+				# change invalidates it -- but never the narration.
 				entry["speech_key"] = fresh_speech
 				entry["speech"] = None
+			if entry.get("align_key") != fresh_align:
+				entry["align_key"] = fresh_align
 				entry["aligned"] = None
 			if entry.get("video_key") != fresh_video:
 				entry["video_key"] = fresh_video

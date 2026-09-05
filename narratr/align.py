@@ -122,7 +122,11 @@ def _align_one(
 			"word": display,
 			"start": round(span[0].start * seconds_per_frame, 3),
 			"end": round(span[-1].end * seconds_per_frame, 3),
-			"score": round(float(span[0].score), 3),
+			# Mean over the word's tokens, not span[0]. The first token's
+			# score is one character's confidence; reporting it as the word's
+			# made ordinary words look catastrophic ("worst score 0.00" on a
+			# correctly aligned scene) and hid a genuinely weak one.
+			"score": round(sum(float(t.score) for t in span) / len(span), 3),
 		}
 		# strict: one span per speakable word, or the alignment is wrong
 		for (display, _), span in zip(speakable, spans, strict=True)
@@ -137,7 +141,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	timings_dir = STORE / "timings"
 	remaining = []
 	for scene_id in todo:
-		cached = timings_dir / f"{manifest.data['scenes'][scene_id]['speech_key']}.json"
+		cached = timings_dir / f"{manifest.data['scenes'][scene_id]['align_key']}.json"
 		if cached.exists():
 			manifest.mark(scene_id, "aligned", cached.name)
 		else:
@@ -174,7 +178,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 
 	for n, scene_id in enumerate(todo, 1):
 		entry = manifest.data["scenes"][scene_id]
-		out = timings_dir / f"{entry['speech_key']}.json"
+		out = timings_dir / f"{entry['align_key']}.json"
 		wav_path = speed.path_for(entry)
 		started = time.perf_counter()
 		words = _align_one(
