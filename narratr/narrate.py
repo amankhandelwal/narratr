@@ -80,9 +80,20 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 	spoken = 0.0
 	elapsed = 0.0
 
+	# The plan called for pinning the reference clip *and* the seed, because
+	# both are conditioning inputs. Only the clip was wired: the seed reached
+	# `audio_key` and never the model, so it moved the cache without moving the
+	# output and re-narration produced different audio for identical input.
+	seed = spec.get("voice", {}).get("seed")
+
 	for n, scene_id in enumerate(todo, 1):
 		out = audio_dir / f"{manifest.data['scenes'][scene_id]['audio_key']}.wav"
 		started = time.perf_counter()
+		if seed is not None:
+			# Re-seeded per scene, not once per run: a resumed run must give a
+			# scene the same voice it would have had in a cold one, whatever
+			# else was generated first.
+			torch.manual_seed(seed)
 		wav = model.generate(by_id[scene_id]["narration"], audio_prompt_path=str(reference))
 		took = time.perf_counter() - started
 		seconds = wav.shape[-1] / model.sr

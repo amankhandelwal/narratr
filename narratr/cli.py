@@ -181,13 +181,41 @@ def cmd_status(args: argparse.Namespace) -> int:
 
 	data = json.loads(manifest_path.read_text())
 	scenes = data["scenes"]
-	done = sum(1 for s in scenes.values() if s.get("audio"))
+	total = len(scenes)
 
 	print(f"run {run_dir.name}")
-	print(f"  audio   {done}/{len(scenes)} scenes")
-	if done < len(scenes):
-		pending = sorted(sid for sid, s in scenes.items() if not s.get("audio"))
-		print(f"  pending {', '.join(pending[:5])}")
+	# Every stage, not just narration. A run twenty minutes into rendering used
+	# to report "audio 6/6" and nothing else, which is the whole of what a
+	# detached run can tell you about itself.
+	for stage, label in (
+		("audio", "narrate"),
+		("speech", "speed"),
+		("aligned", "align"),
+		("video", "render"),
+	):
+		done = sum(1 for s in scenes.values() if s.get(stage))
+		bar = "█" * round(12 * done / total) if total else ""
+		print(f"  {label:8} {done:>3}/{total} {bar}")
+
+	incomplete = [
+		(label, sorted(sid for sid, s in scenes.items() if not s.get(stage)))
+		for stage, label in (
+			("audio", "narrate"),
+			("speech", "speed"),
+			("aligned", "align"),
+			("video", "render"),
+		)
+	]
+	for label, pending in incomplete:
+		if pending:
+			shown = ", ".join(pending[:5])
+			more = f" (+{len(pending) - 5})" if len(pending) > 5 else ""
+			print(f"\n  {label} pending: {shown}{more}")
+			break
+
+	final = run_dir / "video.mp4"
+	if final.exists():
+		print(f"\n  ✓ {final}")
 
 	log = run_dir / "run.log"
 	if log.exists():
