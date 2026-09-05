@@ -14,3 +14,6 @@ demo/.venv/
 
 .DS_Store
 store/
+
+# Remotion writes ad-hoc renders here
+render/remotion/out/
