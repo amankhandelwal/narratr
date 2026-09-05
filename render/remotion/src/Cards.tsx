@@ -64,7 +64,7 @@ export const Cards: React.FC<CardsProps> = ({ heading, cards, icons }) => {
 					const start = beatAt(i + 1, cards.length + 1, durationInFrames);
 					return (
 						<div
-							key={card.title}
+							key={`${i}-${card.title}`}
 							style={{
 								flex: 1,
 								display: "flex",

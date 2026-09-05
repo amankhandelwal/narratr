@@ -17,7 +17,7 @@ export const theme = {
 } as const;
 
 /** Accent rotation. Ordered so adjacent entries stay distinguishable. */
-export const ACCENTS = [
+const ACCENTS = [
 	"#22d3ee", // cyan
 	"#34d399", // emerald
 	"#a78bfa", // violet

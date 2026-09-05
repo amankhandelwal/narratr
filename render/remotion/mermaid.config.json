@@ -1,5 +1,6 @@
 {
   "theme": "base",
+  "securityLevel": "strict",
   "themeVariables": {
     "darkMode": true,
     "background": "#020617",

@@ -23,10 +23,9 @@ export type IconProps = {
 	color: string;
 	/** Lucide's 2px stroke reads heavy below ~40px and thin above ~120px. */
 	strokeWidth?: number;
-	opacity?: number;
 };
 
-export const Icon: React.FC<IconProps> = ({ markup, size, color, strokeWidth, opacity }) => {
+export const Icon: React.FC<IconProps> = ({ markup, size, color, strokeWidth }) => {
 	if (!markup) return null;
 	const sized =
 		strokeWidth === undefined
@@ -35,7 +34,7 @@ export const Icon: React.FC<IconProps> = ({ markup, size, color, strokeWidth, op
 	return (
 		<span
 			className="icon"
-			style={{ width: size, height: size, color, opacity, flexShrink: 0 }}
+			style={{ width: size, height: size, color, flexShrink: 0 }}
 			dangerouslySetInnerHTML={{ __html: sized }}
 		/>
 	);
