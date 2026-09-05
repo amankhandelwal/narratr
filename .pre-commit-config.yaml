@@ -2,7 +2,32 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.2
     hooks:
+      # Run the linter first so the formatter cleans up after its fixes
+      - id: ruff
+        name: ruff lint
+        description: Lint Python code with ruff
+        args: [--fix]
       # Run the formatter
       - id: ruff-format
         name: ruff format
         description: Format Python code with ruff
+
+  # Local hooks: `uv run` so they use the project environment rather than an
+  # isolated one pre-commit builds, which would not have narratr installed.
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        description: Type-check narratr/
+        entry: uv run mypy narratr/
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: pytest
+        name: pytest
+        description: Run the test suite (about 1 second)
+        entry: uv run pytest tests/ -q
+        language: system
+        types: [python]
+        pass_filenames: false
