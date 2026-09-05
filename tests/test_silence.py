@@ -32,7 +32,7 @@ def test_threshold_separates_the_two_cases():
 def test_check_raises_on_silence(monkeypatch):
 	monkeypatch.setattr("narratr.stitch.mean_volume", lambda _: -91.0)
 	with pytest.raises(StitchError, match="silent"):
-		check_audible(Path("scene.mp4"), "the-flow")
+		check_audible(Path("scene.wav"), "the-flow")
 
 
 def test_check_passes_on_real_audio(monkeypatch):
@@ -43,4 +43,4 @@ def test_check_passes_on_real_audio(monkeypatch):
 def test_check_raises_when_unmeasurable(monkeypatch):
 	monkeypatch.setattr("narratr.stitch.mean_volume", lambda _: None)
 	with pytest.raises(StitchError, match="could not measure"):
-		check_audible(Path("scene.mp4"), "the-flow")
+		check_audible(Path("scene.wav"), "the-flow")

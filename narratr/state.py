@@ -30,14 +30,14 @@ def atomic_write(path: Path, payload: str) -> None:
 	tmp.rename(path)
 
 
-def _digest(material: Any) -> str:
+def digest(material: Any) -> str:
 	return hashlib.sha256(json.dumps(material, sort_keys=True).encode()).hexdigest()[:16]
 
 
 def audio_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 	"""What the narration depends on. Changing the picture must not re-narrate."""
 	voice = spec.get("voice", {})
-	return _digest(
+	return digest(
 		[scene["narration"], voice.get("reference"), voice.get("seed"), "chatterbox-turbo"]
 	)
 
@@ -49,7 +49,14 @@ VISUAL_FIELDS = ("type", "heading", "bullets", "mermaid", "revealSteps", "code",
 # The renderer's own source counts as an input. Without this, changing a colour
 # or a layout leaves every cached video stale and the pipeline reports nothing
 # to do -- which is exactly what happened when the palette changed.
-RENDERER_SOURCES = ("render/remotion/src", "render/remotion/mermaid.config.json")
+# The Python side builds the render command (codec, preset, props), so it is
+# just as much a renderer input as the components are. Leaving it out meant an
+# encoder flag change silently reused the old videos.
+RENDERER_SOURCES = (
+	"render/remotion/src",
+	"render/remotion/mermaid.config.json",
+	"narratr/render.py",
+)
 
 
 @lru_cache(maxsize=1)
@@ -61,7 +68,7 @@ def renderer_digest() -> str:
 		for file in files:
 			if file.is_file():
 				parts.append(f"{file.relative_to(ROOT)}:{file.read_text()}")
-	return _digest(parts)
+	return digest(parts)
 
 
 def video_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
@@ -70,7 +77,7 @@ def video_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 	Keyed separately from audio so editing a diagram re-renders the video and
 	reuses the narration, and editing narration does both.
 	"""
-	return _digest(
+	return digest(
 		[audio_key(scene, spec), renderer_digest()] + [scene.get(field) for field in VISUAL_FIELDS]
 	)
 

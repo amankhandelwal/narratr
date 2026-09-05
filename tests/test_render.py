@@ -38,21 +38,6 @@ def test_duration_is_passed_through_unrounded():
 	assert props["durationInSeconds"] == 11.837
 
 
-def test_mux_names_both_streams_explicitly():
-	"""Remotion writes a silent AAC track into every scene at a higher bitrate
-	than our narration. Without explicit -map, ffmpeg picks that as the "best"
-	audio and the video comes out silent with no warning."""
-	from pathlib import Path
-
-	from narratr.stitch import mux_args
-
-	args = mux_args(Path("v.mp4"), Path("a.wav"), Path("o.mp4"))
-	assert "-map" in args
-	assert args[args.index("-map") + 1] == "0:v:0"
-	rest = args[args.index("-map") + 2 :]
-	assert rest[rest.index("-map") + 1] == "1:a:0"
-
-
 def test_code_props_carry_highlighted_html(tmp_path, monkeypatch):
 	"""The html prop went missing once: Scene.tsx did not forward it and Code
 	silently fell back to plain text. Nothing failed, it just looked wrong."""
