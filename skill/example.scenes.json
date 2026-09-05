@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "source": {
+    "title": "narratr, by way of example",
+    "origin": "inline",
+    "block_ids": [
+      "what-1",
+      "what-2",
+      "what-3",
+      "what-4",
+      "what-5",
+      "what-6"
+    ]
+  },
+  "coverage": {
+    "what-1": "what-it-is",
+    "what-2": "the-failure",
+    "what-3": "the-pipeline",
+    "what-4": "the-cost",
+    "what-5": "the-command",
+    "what-6": "where-it-stands"
+  },
+  "voice": {
+    "reference": "assets/voices/sample-01.wav",
+    "seed": 7,
+    "speed": 0.92
+  },
+  "scenes": [
+    {
+      "id": "what-it-is",
+      "type": "flow",
+      "heading": "narratr",
+      "steps": [
+        { "icon": "file-text", "label": "Document" },
+        { "icon": "file-pen", "label": "Script" },
+        { "icon": "clapperboard", "label": "Narrated video" }
+      ],
+      "footer": { "icon": "laptop-minimal", "label": "All on your laptop" },
+      "narration": "Narrator turns a document into a narrated video, and it runs entirely on your own machine. You point it at a document, it writes the script, and your laptop does the rest."
+    },
+    {
+      "id": "the-failure",
+      "type": "prose",
+      "heading": "The usual failure",
+      "bullets": [
+        { "text": "Slides first", "icon": "layout-template", "state": "struck" },
+        { "text": "Narration second", "icon": "mic", "state": "struck" },
+        { "text": "Drift forever", "icon": "triangle-alert" }
+      ],
+      "narration": "Every project like this fails the same way. You build the slides first, then try to make the narration fit them. The timing drifts, and every edit breaks the alignment all over again."
+    },
+    {
+      "id": "the-pipeline",
+      "type": "diagram",
+      "heading": "Where the clock comes from",
+      "mermaid": "flowchart LR\n    N@{ icon: \"lucide:mic\", label: \"Narration\" }\n    T@{ icon: \"lucide:captions\", label: \"Timings\" }\n    V@{ icon: \"lucide:image\", label: \"Visuals\" }\n    M@{ icon: \"lucide:film\", label: \"Assembly\" }\n    N --> T\n    N --> V\n    T --> M\n    V --> M",
+      "revealSteps": [["N"], ["T", "V"], ["M"]],
+      "narration": "Narration is rendered first, and it is measured. Those measurements go two ways at once: into the word timings that become captions, and into the length each scene is drawn to fit. Assembly joins the two back together."
+    },
+    {
+      "id": "the-cost",
+      "type": "cards",
+      "heading": "What it costs",
+      "cards": [
+        { "icon": "wallet", "title": "No API credits", "detail": "Nothing metered, nothing uploaded" },
+        { "icon": "clock", "title": "Twice the runtime", "detail": "A 2 min clip costs about 4 min" },
+        { "icon": "shield-check", "title": "Nothing leaves", "detail": "Every stage runs locally" }
+      ],
+      "narration": "A video costs nothing to make. There is no subscription and no metered API. What you pay instead is time, at roughly twice the length of the finished video, and none of it needs you watching."
+    },
+    {
+      "id": "the-command",
+      "type": "code",
+      "heading": "Starting a run",
+      "code": "uv run narratr render scenes.json --detach",
+      "lang": "sh",
+      "narration": "One command starts it. Detaching returns a run identifier in about a second and keeps rendering after the session that started it has gone away."
+    },
+    {
+      "id": "where-it-stands",
+      "type": "prose",
+      "heading": "Where it stands",
+      "bullets": [
+        { "text": "Runs resume", "icon": "rotate-ccw" },
+        { "text": "Edits are cheap", "icon": "pencil" }
+      ],
+      "narration": "Runs checkpoint after every scene, so a closed laptop lid costs ninety seconds rather than the afternoon. And because everything is cached by content, editing one slide costs seconds rather than a rebuild."
+    }
+  ]
+}

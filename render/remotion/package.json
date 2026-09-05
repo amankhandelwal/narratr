@@ -16,7 +16,6 @@
     "shiki": "^4.4.3"
   },
   "devDependencies": {
-    "@iconify-json/lucide": "1.2.129",
     "@mermaid-js/mermaid-cli": "^11.17.0",
     "@types/react": "^19.0.0",
     "typescript": "^5.6.0"

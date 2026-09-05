@@ -9,7 +9,7 @@ help:
 	@echo "  make doctor     - Check this machine can actually render"
 	@echo ""
 	@echo "Development commands:"
-	@echo "  make validate   - Validate examples/scenes.json against the schema"
+	@echo "  make validate   - Validate examples/brief.scenes.json against the schema"
 	@echo "  make test       - Run linting, type checks, and tests"
 	@echo "  make fix        - Auto-fix linting and formatting issues"
 	@echo "  make clean      - Clean up cache files and test artifacts"
@@ -43,7 +43,7 @@ doctor:
 
 # Validate the example spec
 validate:
-	@uv run narratr validate examples/scenes.json
+	@uv run narratr validate examples/brief.scenes.json
 
 # Run linting, type checks, and tests
 test:

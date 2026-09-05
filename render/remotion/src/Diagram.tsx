@@ -54,6 +54,9 @@ export const Diagram: React.FC<DiagramProps> = ({ heading, svg, revealSteps }) =
 		const lines: string[] = [
 			".diagram svg { max-width: none !important; width: 100% !important;" +
 				" height: 100% !important; }",
+			// Nothing here may change the glyph's size or spacing: Mermaid
+			// measured the label before this stylesheet existed and clips the
+			// foreignObject to that width. Layout lives inline, in icons.py.
 		];
 
 		revealSteps.forEach((group, beat) => {
@@ -62,9 +65,39 @@ export const Diagram: React.FC<DiagramProps> = ({ heading, svg, revealSteps }) =
 				lines.push(`${node} { opacity: ${opacityAt(beat)} }`);
 				// Colour follows the reveal, so each beat is visually distinct
 				// and the eye can tell which nodes arrived together.
+				// What may be tinted: the node's own outline, and every shape in
+				// the glyph inside an icon node -- a Lucide glyph is not all
+				// paths, so matching only `path` left `image` (a rect, a circle
+				// and a path) two-thirds in the theme colour. Two things must be
+				// left alone.
+				//
+				// `stroke="none"` paths are fill and hit-test layers, not
+				// outlines. An icon node has both, sitting slightly proud of the
+				// tile, so stroking them drew two offset rectangles over the
+				// label. `.label` holds the text's background rect, which is not
+				// a border either.
+				const paintable =
+					`${node} > rect, ${node} > polygon, ${node} > circle, ` +
+					`${node} > path:not([stroke="none"]), ` +
+					`${node} > g:not(.label) :is(path, rect, circle, ellipse, line, polyline, polygon):not([stroke="none"])`;
+				lines.push(`${paintable} { stroke: ${accent(beat)} !important }`);
+				// The label's glyph is excluded from `paintable` along with the
+				// rest of `.label`, so it takes the beat colour through
+				// `currentColor` instead of a stroke override.
+				// Mermaid's own stylesheet carries `.node path { stroke: nodeBorder }`,
+				// which reaches inside the label and greys the glyph. `paintable`
+				// excludes `.label`, so the glyph needs saying explicitly.
 				lines.push(
-					`${node} rect, ${node} polygon, ${node} circle, ${node} path ` +
-						`{ stroke: ${accent(beat)} !important; stroke-width: 2.5px !important }`,
+					`${node} .narratr-icon svg, ${node} .narratr-icon svg * ` +
+						`{ stroke: ${accent(beat)} !important }`,
+				);
+				// Weight belongs to the outline only. The glyph lives in its own
+				// nested <svg> on a 24-unit viewBox, where 2.5px is a slab.
+				lines.push(
+					`${node} > rect, ${node} > polygon, ${node} > circle, ` +
+						`${node} > path:not([stroke="none"]), ` +
+						`${node} > g:not(.label) > path:not([stroke="none"]) ` +
+						`{ stroke-width: 2.5px !important }`,
 				);
 			}
 		});

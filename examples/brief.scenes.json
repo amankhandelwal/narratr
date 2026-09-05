@@ -70,20 +70,20 @@
     },
     {
       "id": "the-fix",
-      "type": "prose",
+      "type": "flow",
       "heading": "Narration is the clock",
-      "bullets": [
+      "steps": [
         {
-          "text": "Script first",
-          "icon": "file-pen"
+          "icon": "file-pen",
+          "label": "Script"
         },
         {
-          "text": "Then audio",
-          "icon": "audio-lines"
+          "icon": "audio-lines",
+          "label": "Audio"
         },
         {
-          "text": "Then pictures",
-          "icon": "image"
+          "icon": "image",
+          "label": "Pictures"
         }
       ],
       "narration": "So invert it. The script comes first. Speech renders each scene and reports exactly how long it turned out to be. Only then does anything get drawn, and the renderer is simply told how much time it has. Synchronisation stops being a problem you solve."
@@ -92,7 +92,7 @@
       "id": "the-flow",
       "type": "diagram",
       "heading": "End to end",
-      "mermaid": "flowchart TD\n    A[\"doc.md\"] --> B[\"Script\"]\n    B --> C[\"Narration\"]\n    C --> D[\"Visuals\"]\n    D --> E[\"video.mp4\"]",
+      "mermaid": "flowchart LR\n    A@{ icon: \"lucide:file-text\", label: \"doc.md\" }\n    B@{ icon: \"lucide:file-pen\", label: \"Script\" }\n    C@{ icon: \"lucide:audio-lines\", label: \"Narration\" }\n    D@{ icon: \"lucide:image\", label: \"Visuals\" }\n    E@{ icon: \"lucide:clapperboard\", label: \"video.mp4\" }\n    A --> B\n    B --> C\n    C --> D\n    D --> E",
       "revealSteps": [
         [
           "A"

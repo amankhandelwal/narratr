@@ -14,7 +14,8 @@
   },
   "voice": {
     "reference": "assets/voices/sample-01.wav",
-    "seed": 7
+    "seed": 7,
+    "speed": 0.92
   },
   "scenes": [
     {
@@ -30,9 +31,18 @@
       "type": "prose",
       "heading": "The catch",
       "bullets": [
-        "Lid close still sleeps",
-        "Unless a display is attached",
-        "Checkpointing covers it"
+        {
+          "text": "Lid close still sleeps",
+          "icon": "moon"
+        },
+        {
+          "text": "Unless a display is attached",
+          "icon": "monitor"
+        },
+        {
+          "text": "Checkpointing covers it",
+          "icon": "rotate-ccw"
+        }
       ],
       "narration": "Closing the lid still puts the machine to sleep unless an external display is attached. So run it lid open on mains power, or lean on the checkpointing and accept losing the scene in flight."
     }

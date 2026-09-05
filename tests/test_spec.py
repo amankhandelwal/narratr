@@ -8,7 +8,7 @@ from pathlib import Path
 from narratr.spec import summarise, validate
 from narratr.state import audio_key, run_dir_name, video_key
 
-EXAMPLE = Path(__file__).resolve().parent.parent / "examples" / "scenes.json"
+EXAMPLE = Path(__file__).resolve().parent.parent / "examples" / "brief.scenes.json"
 
 
 def load() -> dict:
@@ -85,9 +85,12 @@ def test_editing_narration_invalidates_both():
 
 
 def test_run_dir_name_reads_like_a_folder_a_person_named():
+	"""The format is the subject, so the title is stated here rather than
+	borrowed from whichever example happens to be bundled."""
 	from datetime import datetime
 
-	name = run_dir_name(load(), datetime(2026, 9, 5, 13, 22))
+	spec = {"source": {"title": "Audio-first video generation"}}
+	name = run_dir_name(spec, datetime(2026, 9, 5, 13, 22))
 	assert name == "Audio-first video generation [05-09 01:22 PM]"
 
 
@@ -104,7 +107,8 @@ def test_run_dir_name_falls_back_when_the_title_is_empty():
 
 
 def test_summarise_mentions_scene_count():
-	assert "3 scenes" in summarise(load())
+	spec = load()
+	assert f"{len(spec['scenes'])} scenes" in summarise(spec)
 
 
 def test_renderer_source_is_part_of_the_video_key(monkeypatch, tmp_path):

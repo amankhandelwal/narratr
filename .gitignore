@@ -9,9 +9,6 @@ __pycache__/
 
 # Run artifacts: large, reproducible, per-machine.
 runs/
-demo/out/
-demo/.venv/
-
 .DS_Store
 store/
 

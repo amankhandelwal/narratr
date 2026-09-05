@@ -57,49 +57,14 @@ syntax, no markdown, no "as you can see". It is the master clock — its measure
 duration sets how long the scene lasts, so never write narration to fit a
 slide.
 
-### Pick the shape from the content
+**Before writing any scene, read `presentation.md` beside this file.** It
+carries the five scene shapes and how to choose between them, the icon rules,
+and the limits the schema enforces. `example.scenes.json`, also beside this
+file, is a complete spec that uses every shape — copy its structure.
 
-Five scene types. Choose by what the content *is*, not for variety:
-
-| The content is | Use | Carries |
-|---|---|---|
-| Ordered steps, a pipeline | `flow` | `steps` (2–5), optional `footer` |
-| Parallel things being compared | `cards` | `cards` (2–4) |
-| Structure or relationships | `diagram` | `mermaid` + `revealSteps` |
-| Source code | `code` | `code` + `lang` |
-| Anything else — properties, claims | `prose` | `bullets` (≤6) |
-
-`prose` is the default. Reaching for `flow` when the content is not a sequence,
-or `cards` when the things are not parallel, makes the shape fight the words.
-
-### Icons
-
-Every bullet, step and card takes a Lucide icon, kebab-case, in `icon`.
-
-- **Name the object under discussion.** "Runs resume" is `rotate-ccw`, not
-  `sparkles`. An icon that decorates rather than names is worse than none.
-- **Omit it if nothing fits.** An approximate icon reads as a mistake.
-- **Look the name up, do not guess twice:**
-
-  ```sh
-  uv run narratr icons <word>
-  ```
-
-  Searches ~2,000 names and Lucide's own keywords. An icon name that does not
-  exist fails `narratr validate` before any compute is spent, with near misses.
-
-### Rejecting something
-
-A bullet describing the approach being *rejected* takes `"state": "struck"`.
-It renders dimmed with a line through it. Use it for the wrong way, usually
-before the right way; do not strike a consequence, only a choice.
-
-### The rules the schema enforces
-
-- One message per scene
-- Fragments on screen, never sentences — detail lives in the narration
-- Six bullets maximum, 2–5 flow steps, 2–4 cards
-- Diagram scenes carry `mermaid` plus `revealSteps` grouping node ids into beats
+Getting the shape wrong is the most common failure: a sequence written as a
+bulleted list, or a comparison written as prose. The guide exists because that
+judgment is the part worth spending attention on.
 
 ## 4. Validate before spending anything
 

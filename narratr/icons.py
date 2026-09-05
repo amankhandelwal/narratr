@@ -105,6 +105,32 @@ def search(query: str, limit: int = 20) -> list[str]:
 	return seen[:limit]
 
 
+# ------------------------------------------------------------------ mermaid
+
+# Mermaid node syntax: A@{ icon: "lucide:file-text", form: "square", ... }
+MERMAID_ICON = re.compile(r"""icon:\s*["']lucide:([a-z0-9-]+)["']""")
+
+
+def inline_markup(name: str, size_em: float = 1.15) -> str:
+	"""An icon sized and quoted for embedding in a Mermaid HTML node label.
+
+	Mermaid measures the rendered label to size the box, so an inline glyph is
+	laid out correctly without anyone computing geometry. Two details make it
+	work: the attributes are single-quoted, because a double quote would end the
+	Mermaid label; and the glyph keeps `stroke="currentColor"`, so the CSS that
+	colours a node on its reveal beat colours the icon with it.
+	"""
+	svg = markup(name)
+	svg = re.sub(r'\swidth="[^"]*"', f" width='{size_em}em'", svg, count=1)
+	svg = re.sub(r'\sheight="[^"]*"', f" height='{size_em}em'", svg, count=1)
+	svg = re.sub(r"\s+", " ", svg).replace('"', "'")
+	# Spacing is inline, not in the renderer's stylesheet. Mermaid measures the
+	# rendered label to size the box and then clips the foreignObject to that
+	# width, so anything CSS adds afterwards pushes the text out of view.
+	style = "display:inline-flex;align-items:center;vertical-align:-0.22em;margin-right:0.45em"
+	return f"<span class='narratr-icon' style='{style}'>{svg}</span>"
+
+
 # ---------------------------------------------------------------- validation
 
 
@@ -131,6 +157,16 @@ def names_in(scene: dict[str, Any]) -> list[str]:
 	return found
 
 
+def mermaid_names_in(scene: dict[str, Any]) -> list[str]:
+	"""Icons a diagram scene asks for, read out of its Mermaid source.
+
+	Kept apart from `names_in` because these never reach a React component --
+	they are baked into the SVG by Mermaid itself. They still have to be
+	validated, or diagram icons become the one place a typo escapes the gate.
+	"""
+	return MERMAID_ICON.findall(scene.get("mermaid") or "")
+
+
 def problems(spec: dict[str, Any]) -> list[str]:
 	"""Icon names that do not exist, with near misses.
 
@@ -138,7 +174,11 @@ def problems(spec: dict[str, Any]) -> list[str]:
 	silently fell back to no icon would degrade one slide in a long video and
 	be found on playback, which is the failure this whole design avoids.
 	"""
-	wanted = {name: scene["id"] for scene in spec.get("scenes", []) for name in names_in(scene)}
+	wanted = {
+		name: scene["id"]
+		for scene in spec.get("scenes", [])
+		for name in [*names_in(scene), *mermaid_names_in(scene)]
+	}
 	if not wanted:
 		return []
 

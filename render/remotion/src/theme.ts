@@ -26,18 +26,7 @@ export const ACCENTS = [
 	"#fb923c", // orange
 ] as const;
 
-/** Matching translucent fills, for shapes that need a body as well as an edge. */
-export const ACCENT_FILLS = [
-	"rgba(8, 51, 68, 0.4)",
-	"rgba(6, 78, 59, 0.4)",
-	"rgba(76, 29, 149, 0.4)",
-	"rgba(120, 53, 15, 0.3)",
-	"rgba(136, 19, 55, 0.4)",
-	"rgba(251, 146, 60, 0.3)",
-] as const;
-
 export const accent = (i: number) => ACCENTS[i % ACCENTS.length];
-export const accentFill = (i: number) => ACCENT_FILLS[i % ACCENT_FILLS.length];
 
 /** Reveal beats across the scene, leaving a beat of settle at the end. */
 export const beatAt = (index: number, total: number, durationInFrames: number) => {

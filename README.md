@@ -55,7 +55,11 @@ Then let Claude see the skill:
 ln -s "$PWD/skill" ~/.claude/skills/narratr
 ```
 
-Start a new Claude session for it to load.
+Start a new Claude session for it to load. The link covers the whole directory,
+so three files travel with it: `SKILL.md` (the workflow), `presentation.md` (how
+to choose a scene's shape) and `example.scenes.json` (a complete spec using
+every shape). A session reads all three without needing to know where this
+checkout lives.
 
 ## Use
 
@@ -99,10 +103,10 @@ or any prefix of one, and defaults to the most recent run.
 Claude session ending. Runs are checkpointed per scene, so an interruption
 costs one scene rather than the run — re-run the same command to resume.
 
-Try it against the bundled example:
+Try it against the bundled example — six scenes using every slide shape:
 
 ```sh
-uv run narratr render examples/scenes.json
+uv run narratr render examples/brief.scenes.json
 ```
 
 ## Voice
@@ -137,9 +141,19 @@ Five scene shapes, chosen by what the content is rather than for variety:
 | Source code | `code` — Shiki, highlighted ahead of render |
 | Anything else | `prose` — up to six fragments |
 
-Bullets, flow steps and cards carry a [Lucide](https://lucide.dev) icon by name.
-A bullet describing the approach being rejected takes `"state": "struck"` and
-renders dimmed with a line through it.
+Bullets, flow steps, cards and diagram nodes carry a
+[Lucide](https://lucide.dev) icon by name. A bullet describing the approach
+being rejected takes `"state": "struck"` and renders dimmed with a line through
+it.
+
+Diagram icons use Mermaid's node syntax and render as labelled boxes with the
+glyph inside. The glyph is inlined into the label before Mermaid sees it, so
+nothing is fetched at render time:
+
+```
+flowchart LR
+    A@{ icon: "lucide:file-text", label: "doc.md" }
+```
 
 ```sh
 uv run narratr icons clapper     # clapperboard

@@ -7,6 +7,7 @@ needs arrives as props; it does not read scenes.json. See render/CONTRACT.md.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -31,6 +32,63 @@ def run_remotion(cmd: list[str], cwd: Path, what: str) -> None:
 		raise RenderError(f"{what} failed:\n  " + "\n  ".join(tail))
 
 
+# `ID@{ icon: "lucide:name", form: "square", label: "text" }` -- Mermaid's own
+# icon-node syntax, which it renders as a bare glyph with the label underneath.
+ICON_NODE = re.compile(r"(?P<id>[A-Za-z0-9_-]+)@\{(?P<body>[^{}]*)\}")
+ICON_FIELD = re.compile(r"""icon:\s*["']lucide:(?P<name>[a-z0-9-]+)["']""")
+LABEL_FIELD = re.compile(r"""label:\s*["'](?P<text>[^"']*)["']""")
+
+
+def inline_mermaid_icons(source: str) -> str:
+	"""Rewrite Mermaid icon nodes as labelled boxes with the glyph inside.
+
+	Mermaid's `@{ icon: ... }` shape *replaces* the box: you get a bare glyph
+	with the text beneath it. That reads well for five nodes and falls apart for
+	an engineering diagram, where the box is what carries the structure.
+
+	So the node becomes an ordinary one whose label is `<icon> text`. Mermaid
+	measures the rendered label to size the box, so the glyph is laid out for
+	free and every node stays a `g.node` with a `rect` -- which is what the
+	reveal animation and the edge routing already understand.
+
+	Inlining the glyph also means Mermaid is never asked to load an icon pack.
+	Its loader only takes a URL and fetches from unpkg.com, so this is what
+	keeps the network off the render path.
+	"""
+
+	def rewrite(match: re.Match[str]) -> str:
+		icon = ICON_FIELD.search(match.group("body"))
+		if not icon:
+			return match.group(0)  # some other @{} node; leave it alone
+		label = LABEL_FIELD.search(match.group("body"))
+		text = label.group("text") if label else match.group("id")
+		glyph = icons.inline_markup(icon.group("name"))
+		return f'{match.group("id")}["{glyph}{text}"]'
+
+	return ICON_NODE.sub(rewrite, source)
+
+
+def check_icons_landed(svg: str, names: list[str]) -> None:
+	"""Refuse a diagram that came back without the icons it asked for.
+
+	The glyph is inlined into the label, so a failure here means Mermaid's
+	sanitiser dropped it -- which it does silently, leaving a diagram that
+	renders, exits zero and is simply missing its icons. Every structural check
+	passes that. This is the one that does not.
+
+	The test is the glyph's own path data, which survives into the output
+	verbatim.
+	"""
+	for name in dict.fromkeys(names):
+		paths = re.findall(r"\sd='([^']{16,})'", icons.inline_markup(name))
+		if not paths:
+			continue  # nothing distinctive to look for; do not invent a failure
+		if not any(fragment in svg for fragment in paths):
+			raise RenderError(
+				f"diagram rendered without its icons: '{name}' is missing from the SVG."
+			)
+
+
 def mermaid_to_svg(source: str, out: Path) -> str:
 	"""Render a Mermaid diagram to SVG, cached by content address.
 
@@ -38,8 +96,9 @@ def mermaid_to_svg(source: str, out: Path) -> str:
 	Diagram component matches on them.
 	"""
 	if not out.exists():
+		wanted = icons.mermaid_names_in({"mermaid": source})
 		mmd = out.with_suffix(".mmd")
-		mmd.write_text(source)
+		mmd.write_text(inline_mermaid_icons(source))
 		tmp = out.with_name(f".{out.name}.partial.svg")
 		run_remotion(
 			[
@@ -57,6 +116,7 @@ def mermaid_to_svg(source: str, out: Path) -> str:
 			REMOTION,
 			"mermaid",
 		)
+		check_icons_landed(tmp.read_text(), wanted)
 		tmp.rename(out)
 	return out.read_text()
 
