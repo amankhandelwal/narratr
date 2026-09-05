@@ -34,11 +34,41 @@ def digest(material: Any) -> str:
 	return hashlib.sha256(json.dumps(material, sort_keys=True).encode()).hexdigest()[:16]
 
 
+def file_digest(path: Path) -> str:
+	"""Content hash of a binary asset. Voice clips and marks are not text."""
+	return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+
+
+def _voice_fingerprint(reference: str | None) -> str | None:
+	"""Hash the reference clip's *contents*, not the path that names it.
+
+	Keying on the path meant replacing `assets/voices/sample-01.wav` in place
+	reused every narration ever made from the old clip -- the same class of
+	stale-cache bug as a renderer source left out of the render key. Falls back
+	to the path when the file is missing, so an unresolvable reference still
+	produces a stable key and the real error surfaces in `narrate`.
+	"""
+	if not reference:
+		return None
+	path = Path(reference)
+	if not path.is_absolute():
+		path = ROOT / path
+	try:
+		return file_digest(path)
+	except OSError:
+		return reference
+
+
 def audio_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 	"""What the narration depends on. Changing the picture must not re-narrate."""
 	voice = spec.get("voice", {})
 	return digest(
-		[scene["narration"], voice.get("reference"), voice.get("seed"), "chatterbox-turbo"]
+		[
+			scene["narration"],
+			_voice_fingerprint(voice.get("reference")),
+			voice.get("seed"),
+			"chatterbox-turbo",
+		]
 	)
 
 
@@ -71,7 +101,18 @@ RENDERER_SOURCES = (
 	# do -- Lucide draws the icons, Mermaid draws the diagrams. Without this,
 	# bumping either leaves every cached video holding the old glyphs and the
 	# pipeline reporting nothing to do.
+	#
+	# package.json carries the *ranges*; the lockfile carries what actually
+	# installs. `^4.0.0` can move Remotion under a package.json that never
+	# changed, so the lockfile is the file that decides what draws a frame.
 	"render/remotion/package.json",
+	"render/remotion/package-lock.json",
+	# Both of these were created after the rule above was written, and both
+	# were missed by it. icons.py resolves every glyph and rewrites Mermaid's
+	# icon nodes; highlight.mjs picks the Shiki theme and strips backgrounds.
+	# Neither is optional to how a frame looks.
+	"narratr/icons.py",
+	"render/remotion/scripts/highlight.mjs",
 )
 
 
@@ -178,6 +219,16 @@ class Manifest:
 		moved. Editing narration invalidates audio, timings and video; editing a
 		diagram invalidates only the video.
 		"""
+		# Drop scenes the spec no longer has. `pending()` reads the manifest,
+		# not the spec, so a scene deleted from scenes.json stayed queued
+		# forever and every stage died on `by_id[scene_id]` with a bare
+		# KeyError -- which `cli.main` does not catch. Editing a spec and
+		# re-running is the core workflow, so this crashed on the common path.
+		# The artifacts stay in the content store; only the ledger entry goes.
+		live = {scene["id"] for scene in spec["scenes"]}
+		for stale in [sid for sid in self.data["scenes"] if sid not in live]:
+			del self.data["scenes"][stale]
+
 		for scene in spec["scenes"]:
 			entry = self.data["scenes"].setdefault(
 				scene["id"],
