@@ -1,7 +1,7 @@
 import React from "react";
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { Icon, IconStyles } from "./Icon";
-import { accent, beatAt, theme } from "./theme";
+import { accent, revealFrames, theme } from "./theme";
 
 export type Card = { icon?: string; title: string; detail?: string };
 
@@ -9,6 +9,8 @@ export type CardsProps = {
 	heading?: string;
 	cards: Card[];
 	icons?: Record<string, string>;
+	/** Seconds into the scene at which each card appears. */
+	beats?: number[];
 };
 
 /**
@@ -18,9 +20,10 @@ export type CardsProps = {
  * genuinely of the same kind. A list of unrelated properties in cards is
  * furniture around nothing, and the skill says so.
  */
-export const Cards: React.FC<CardsProps> = ({ heading, cards, icons }) => {
+export const Cards: React.FC<CardsProps> = ({ heading, cards, icons, beats }) => {
 	const frame = useCurrentFrame();
-	const { durationInFrames } = useVideoConfig();
+	const { durationInFrames, fps } = useVideoConfig();
+	const starts = revealFrames(cards.length, durationInFrames, fps, beats);
 
 	const fade = (start: number) =>
 		interpolate(frame, [start, start + 12], [0, 1], {
@@ -61,7 +64,7 @@ export const Cards: React.FC<CardsProps> = ({ heading, cards, icons }) => {
 				}}
 			>
 				{cards.map((card, i) => {
-					const start = beatAt(i + 1, cards.length + 1, durationInFrames);
+					const start = starts[i];
 					return (
 						<div
 							key={`${i}-${card.title}`}

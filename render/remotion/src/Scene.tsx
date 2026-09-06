@@ -27,6 +27,12 @@ export type SceneProps = {
 	cards?: Card[];
 	/** Lucide markup by name, resolved ahead of render time. */
 	icons?: Record<string, string>;
+	/**
+	 * Seconds into the scene at which each revealed element appears, resolved
+	 * in Python from the scene's cue phrases against the aligned narration.
+	 * Absent under `narratr preview`, which has no audio to align.
+	 */
+	beats?: number[];
 };
 
 export const Scene: React.FC<SceneProps> = (props) => {
@@ -36,6 +42,7 @@ export const Scene: React.FC<SceneProps> = (props) => {
 				heading={props.heading}
 				svg={props.svg ?? ""}
 				revealSteps={props.revealSteps ?? []}
+				beats={props.beats}
 			/>
 		);
 	}
@@ -56,17 +63,26 @@ export const Scene: React.FC<SceneProps> = (props) => {
 				steps={props.steps ?? []}
 				footer={props.footer}
 				icons={props.icons}
+				beats={props.beats}
 			/>
 		);
 	}
 	if (props.type === "cards") {
-		return <Cards heading={props.heading} cards={props.cards ?? []} icons={props.icons} />;
+		return (
+			<Cards
+				heading={props.heading}
+				cards={props.cards ?? []}
+				icons={props.icons}
+				beats={props.beats}
+			/>
+		);
 	}
 	return (
 		<Prose
 			heading={props.heading ?? ""}
 			bullets={props.bullets ?? []}
 			icons={props.icons}
+			beats={props.beats}
 		/>
 	);
 };

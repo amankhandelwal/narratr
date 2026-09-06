@@ -38,11 +38,79 @@ from narratr.media import (
 from narratr.paths import STORE
 from narratr.state import Manifest, digest
 
-__all__ = ["FPS", "StitchError", "preview", "run"]
+__all__ = ["FPS", "StitchError", "caption_args", "preview", "run"]
 
 
 class StitchError(MediaError):
 	"""Assembly cannot proceed."""
+
+
+def caption_args(assembled: Path, captions: Path, out: Path) -> list[str]:
+	"""ffmpeg arguments that copy the assembly and add the captions as a track."""
+	return [
+		"-i",
+		str(assembled),
+		"-i",
+		str(captions),
+		# Explicit maps: the assembly carries a data stream alongside the two
+		# real ones, and a bare -map 0 would hand it to the subtitle encoder.
+		"-map",
+		"0:v:0",
+		"-map",
+		"0:a:0",
+		"-map",
+		"1:0",
+		"-c:v",
+		"copy",
+		"-c:a",
+		"copy",
+		# mov_text is the only subtitle codec an mp4 carries. QuickTime shows it
+		# under View > Subtitles; players that ignore it see the file unchanged.
+		"-c:s",
+		"mov_text",
+		"-metadata:s:s:0",
+		"language=eng",
+		"-metadata:s:s:0",
+		"handler_name=Captions",
+		"-map_chapters",
+		"0",
+		"-movflags",
+		"+faststart",
+		str(out),
+	]
+
+
+def _deliver(assembled: Path, captions: Path, final: Path) -> bool:
+	"""Put the assembly in the run directory, with the captions inside it.
+
+	QuickTime will not load a sidecar .srt, so subtitles have to live in the
+	container or they may as well not exist. Everything but the subtitle track
+	is stream-copied, so this costs a second and no quality.
+
+	The assembly stays cached without the captions on purpose: the caption
+	timings come from the aligner, which `final_key` does not cover, so baking
+	them into the cached mp4 would serve stale cues after a re-align.
+
+	Returns whether captions made it in. An empty srt -- a spec whose scenes all
+	failed to align -- is not worth failing a finished render over, so the video
+	ships without the track and says so.
+	"""
+	final.unlink(missing_ok=True)
+	if not captions.exists() or not captions.read_text().strip():
+		try:
+			final.hardlink_to(assembled)
+		except OSError:  # different filesystem
+			shutil.copy(assembled, final)
+		return False
+
+	tmp = final.with_name(f".{final.name}.partial.mp4")
+	try:
+		ffmpeg(caption_args(assembled, captions, tmp), "mux captions")
+		tmp.rename(final)
+	except MediaError:
+		tmp.unlink(missing_ok=True)
+		raise
+	return True
 
 
 def _measured(padded: Path, scene_id: str) -> float:
@@ -232,13 +300,15 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 			for scratch_file in (track, silent, audio_list, video_list, tmp):
 				scratch_file.unlink(missing_ok=True)
 
+	# Captions before delivery, not after: they are muxed into the shipped file,
+	# so they have to exist before it is written.
+	captions = write_captions(spec, manifest, run_dir, durations=durations, offset=intro_duration)
+
 	final = run_dir / "video.mp4"
-	final.unlink(missing_ok=True)
-	try:
-		final.hardlink_to(assembled)
-	except OSError:  # different filesystem
-		shutil.copy(assembled, final)
+	embedded = _deliver(assembled, captions, final)
 
-	print(f"✓ stitch: {probe_duration(final):.0f}s, {len(scenes) + 1} chapters -> {final.name}")
-
-	write_captions(spec, manifest, run_dir, durations=durations, offset=intro_duration)
+	subtitles = "captions embedded" if embedded else "no captions (empty srt)"
+	print(
+		f"✓ stitch: {probe_duration(final):.0f}s, {len(scenes) + 1} chapters, "
+		f"{subtitles} -> {final.name}"
+	)

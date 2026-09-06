@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from narratr import icons, media, speed
+from narratr import cues, icons, media, speed
 from narratr.errors import PipelineError
 from narratr.paths import ROOT, STORE
 from narratr.state import Manifest, atomic_write
@@ -177,8 +177,23 @@ def highlight(code: str, lang: str | None, out: Path) -> str:
 	return out.read_text()
 
 
+def _timings(entry: dict[str, Any]) -> list[dict[str, Any]]:
+	"""The scene's aligned words, or none if alignment was skipped."""
+	aligned = entry.get("aligned")
+	if not aligned:
+		return []
+	path = STORE / "timings" / aligned
+	if not path.exists():
+		return []
+	return list(json.loads(path.read_text()).get("words", []))
+
+
 def _props_for(
-	scene: dict[str, Any], duration: float, assets: Path, key: str = "k"
+	scene: dict[str, Any],
+	duration: float,
+	assets: Path,
+	key: str = "k",
+	words: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
 	props: dict[str, Any] = {
 		"type": scene["type"],
@@ -190,6 +205,13 @@ def _props_for(
 	wanted = icons.names_in(scene)
 	if wanted:
 		props["icons"] = {name: icons.markup(name) for name in dict.fromkeys(wanted)}
+	# When each element appears, in seconds, taken from the aligned narration
+	# rather than a share of the running time. Empty without timings, and the
+	# renderer keeps its own spacing for that case -- `narratr preview` has no
+	# audio to align.
+	beats = cues.beats(scene, words or [], duration)
+	if beats:
+		props["beats"] = beats
 	if scene["type"] == "prose":
 		props["bullets"] = scene.get("bullets", [])
 	elif scene["type"] == "flow":
@@ -263,7 +285,7 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 		entry = manifest.data["scenes"][scene_id]
 		out = video_dir / f"{entry['video_key']}.mp4"
 		duration = scene_duration(entry)
-		props = _props_for(by_id[scene_id], duration, assets, entry["video_key"])
+		props = _props_for(by_id[scene_id], duration, assets, entry["video_key"], _timings(entry))
 		props_file = assets / f"{entry['video_key']}.props.json"
 		atomic_write(props_file, json.dumps(props))
 

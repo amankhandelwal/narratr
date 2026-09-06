@@ -54,3 +54,40 @@ def test_highlight_is_cached_by_path(tmp_path):
 	out.write_text("<pre>already here</pre>")
 	# An existing file must be reused rather than shelling out to node again.
 	assert highlight("ignored", "sh", out) == "<pre>already here</pre>"
+
+
+# ------------------------------------------------------------------- beats
+
+
+def timings(*starts: float) -> list[dict]:
+	return [{"word": f"w{i}", "start": s, "end": s + 0.3} for i, s in enumerate(starts)]
+
+
+CUED = {
+	"id": "s",
+	"type": "cards",
+	"narration": "one two three four five six",
+	"cards": [{"title": "a", "cue": "two"}, {"title": "b", "cue": "five"}],
+}
+
+
+def test_beats_come_from_the_aligned_narration():
+	props = _props_for(CUED, 20.0, ASSETS, words=timings(0, 1, 2, 3, 4, 5))
+	assert props["beats"] == [1.0, 4.0]
+
+
+def test_no_timings_means_no_beats():
+	# `narratr preview` renders before there is any audio to align against, and
+	# the renderer keeps its own spacing for that case.
+	assert "beats" not in _props_for(CUED, 20.0, ASSETS)
+
+
+def test_a_scene_with_nothing_to_reveal_has_no_beats():
+	# A heading-only prose scene is a section card: nothing appears on a beat.
+	scene = {"id": "s", "type": "prose", "heading": "Part two", "narration": "one two"}
+	assert "beats" not in _props_for(scene, 5.0, ASSETS, words=timings(0, 1))
+
+
+def test_one_beat_per_revealed_element():
+	props = _props_for(CUED, 20.0, ASSETS, words=timings(0, 1, 2, 3, 4, 5))
+	assert len(props["beats"]) == len(CUED["cards"])

@@ -57,9 +57,13 @@ syntax, no markdown, no "as you can see". It is the master clock — its measure
 duration sets how long the scene lasts, so never write narration to fit a
 slide.
 
+Every bullet, step, card and diagram reveal also carries a `cue`: a verbatim
+phrase from that scene's narration, which is when it appears on screen. Write
+the narration first and cue against it, never the other way round.
+
 **Before writing any scene, read `presentation.md` beside this file.** It
-carries the five scene shapes and how to choose between them, the icon rules,
-and the limits the schema enforces. `example.scenes.json`, also beside this
+carries the five scene shapes and how to choose between them, the cue and icon
+rules, and the limits the schema enforces. `example.scenes.json`, also beside this
 file, is a complete spec that uses every shape — copy its structure.
 
 Getting the shape wrong is the most common failure: a sequence written as a
@@ -72,8 +76,9 @@ judgment is the part worth spending attention on.
 uv run narratr validate scenes.json
 ```
 
-This is free and catches dropped blocks, bad schema, and scenes referenced by
-coverage that do not exist. Fix and re-validate until clean.
+This is free and catches dropped blocks, bad schema, scenes referenced by
+coverage that do not exist, and any cue that is missing or is not a phrase in
+its scene's narration. Fix and re-validate until clean.
 
 ## 5. Confirm, then launch
 

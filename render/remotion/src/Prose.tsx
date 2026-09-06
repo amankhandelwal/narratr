@@ -1,24 +1,24 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { Icon, IconStyles } from "./Icon";
-import { accent, beatAt, theme } from "./theme";
+import { accent, revealFrames, theme } from "./theme";
 
 /** A bullet is a plain string, or a fragment carrying an icon and a state. */
-export type Bullet = string | { text: string; icon?: string; state?: "struck" };
+export type Bullet = { text: string; icon?: string; state?: "struck" };
 
 export type ProseProps = {
 	heading: string;
 	bullets: Bullet[];
 	icons?: Record<string, string>;
+	/** Seconds into the scene at which each bullet appears. */
+	beats?: number[];
 };
 
-const asFragment = (bullet: Bullet) =>
-	typeof bullet === "string" ? { text: bullet } : bullet;
-
 /** Heading plus up to six fragments, revealed one beat at a time. */
-export const Prose: React.FC<ProseProps> = ({ heading, bullets, icons }) => {
+export const Prose: React.FC<ProseProps> = ({ heading, bullets, icons, beats }) => {
 	const frame = useCurrentFrame();
-	const { durationInFrames } = useVideoConfig();
+	const { durationInFrames, fps } = useVideoConfig();
+	const starts = revealFrames(bullets.length, durationInFrames, fps, beats);
 
 	const fade = (start: number) =>
 		interpolate(frame, [start, start + 12], [0, 1], {
@@ -34,7 +34,7 @@ export const Prose: React.FC<ProseProps> = ({ heading, bullets, icons }) => {
 
 	// One bullet without an icon must not pull its text left of the others, so
 	// the gutter is reserved for the whole list as soon as any bullet uses it.
-	const gutter = bullets.some((bullet) => asFragment(bullet).icon) ? 62 : 0;
+	const gutter = bullets.some((bullet) => bullet.icon) ? 62 : 0;
 
 	return (
 		<AbsoluteFill
@@ -52,8 +52,8 @@ export const Prose: React.FC<ProseProps> = ({ heading, bullets, icons }) => {
 				{heading}
 			</div>
 			{bullets.map((bullet, i) => {
-				const { text, icon, state } = asFragment(bullet);
-				const start = beatAt(i + 1, bullets.length + 1, durationInFrames);
+				const { text, icon, state } = bullet;
+				const start = starts[i];
 				// Struck fragments are the approach being rejected. Everything
 				// about them recedes -- glyph included -- so the live lines read
 				// first and the rejected ones read as history.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accent, beatAt } from "../theme";
+import { accent, beatAt, revealFrames } from "../theme";
 
 describe("beatAt", () => {
 	it("hands out beats inside the first 60% of the scene", () => {
@@ -42,5 +42,33 @@ describe("accent", () => {
 
 	it("keeps adjacent beats distinguishable", () => {
 		for (let i = 0; i < 6; i++) expect(accent(i)).not.toBe(accent(i + 1));
+	});
+});
+
+describe("revealFrames", () => {
+	it("puts an element on its cued second", () => {
+		expect(revealFrames(2, 900, 30, [3.5, 12])).toEqual([105, 360]);
+	});
+
+	it("falls back to even spacing without beats", () => {
+		expect(revealFrames(3, 900, 30)).toEqual([
+			beatAt(1, 4, 900),
+			beatAt(2, 4, 900),
+			beatAt(3, 4, 900),
+		]);
+	});
+
+	it("fills in per element, not all or nothing", () => {
+		const [cued, guessed] = revealFrames(2, 900, 30, [3.5]);
+		expect(cued).toBe(105);
+		expect(guessed).toBe(beatAt(2, 3, 900));
+	});
+
+	it("never reveals past the last frame", () => {
+		expect(revealFrames(1, 300, 30, [99])[0]).toBe(299);
+	});
+
+	it("returns one frame per element", () => {
+		expect(revealFrames(4, 600, 30, [1]).length).toBe(4);
 	});
 });

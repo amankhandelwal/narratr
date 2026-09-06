@@ -33,15 +33,18 @@
       "bullets": [
         {
           "text": "Lid close still sleeps",
-          "icon": "moon"
+          "icon": "moon",
+          "cue": "Closing the lid still puts the machine to sleep"
         },
         {
           "text": "Unless a display is attached",
-          "icon": "monitor"
+          "icon": "monitor",
+          "cue": "unless an external display is attached"
         },
         {
           "text": "Checkpointing covers it",
-          "icon": "rotate-ccw"
+          "icon": "rotate-ccw",
+          "cue": "lean on the checkpointing"
         }
       ],
       "narration": "Closing the lid still puts the machine to sleep unless an external display is attached. So run it lid open on mains power, or lean on the checkpointing and accept losing the scene in flight."

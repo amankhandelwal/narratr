@@ -123,46 +123,39 @@
           "bullets": {
             "type": "array",
             "maxItems": 6,
-            "description": "Fragments, never sentences. Six objects max per slide. A plain string is a bullet with no icon.",
+            "description": "Fragments, never sentences. Six objects max per slide. Each carries the narration phrase it appears on.",
             "items": {
-              "oneOf": [
-                {
+              "type": "object",
+              "required": [
+                "text",
+                "cue"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "text": {
                   "type": "string",
                   "minLength": 1,
                   "maxLength": 300
                 },
-                {
-                  "type": "object",
-                  "required": [
-                    "text"
+                "icon": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "description": "Lucide icon name, kebab-case. Validated against the installed pack before any compute."
+                },
+                "state": {
+                  "enum": [
+                    "struck"
                   ],
-                  "additionalProperties": false,
-                  "properties": {
-                    "text": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 300
-                    },
-                    "icon": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 100,
-                      "description": "Lucide icon name, kebab-case. Validated against the installed pack before any compute."
-                    },
-                    "state": {
-                      "enum": [
-                        "struck"
-                      ],
-                      "description": "struck: the approach being rejected. Dimmed with a line through it."
-                    },
-                    "cue": {
-                      "type": "string",
-                      "maxLength": 300,
-                      "description": "Reserved. Verbatim phrase from this scene's narration; not yet resolved."
-                    }
-                  }
+                  "description": "struck: the approach being rejected. Dimmed with a line through it."
+                },
+                "cue": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300,
+                  "description": "Verbatim phrase from this scene's narration. The element appears as the phrase begins, instead of on a guessed clock. Required: narratr validate rejects a revealed element without one, and rejects a phrase that is not in the narration. Cues must appear in reveal order."
                 }
-              ]
+              }
             }
           },
           "mermaid": {
@@ -205,7 +198,8 @@
               "type": "object",
               "required": [
                 "icon",
-                "label"
+                "label",
+                "cue"
               ],
               "additionalProperties": false,
               "properties": {
@@ -220,6 +214,12 @@
                   "minLength": 1,
                   "maxLength": 300,
                   "description": "A word or two under the icon."
+                },
+                "cue": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300,
+                  "description": "Verbatim phrase from this scene's narration. The element appears as the phrase begins, instead of on a guessed clock. Required: narratr validate rejects a revealed element without one, and rejects a phrase that is not in the narration. Cues must appear in reveal order."
                 }
               }
             }
@@ -255,7 +255,8 @@
             "items": {
               "type": "object",
               "required": [
-                "title"
+                "title",
+                "cue"
               ],
               "additionalProperties": false,
               "properties": {
@@ -274,8 +275,25 @@
                   "type": "string",
                   "maxLength": 300,
                   "description": "One short line. Never a sentence."
+                },
+                "cue": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300,
+                  "description": "Verbatim phrase from this scene's narration. The element appears as the phrase begins, instead of on a guessed clock. Required: narratr validate rejects a revealed element without one, and rejects a phrase that is not in the narration. Cues must appear in reveal order."
                 }
               }
+            }
+          },
+          "revealCues": {
+            "type": "array",
+            "description": "diagram scenes. One narration phrase per revealSteps group, in the same order: group i appears as revealCues[i] is spoken.",
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300,
+              "description": "Verbatim phrase from this scene's narration. The element appears as the phrase begins, instead of on a guessed clock. Required: narratr validate rejects a revealed element without one, and rejects a phrase that is not in the narration. Cues must appear in reveal order."
             }
           }
         }

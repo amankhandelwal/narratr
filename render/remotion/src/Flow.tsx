@@ -1,7 +1,7 @@
 import React from "react";
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { Icon, IconStyles } from "./Icon";
-import { accent, beatAt, theme } from "./theme";
+import { accent, revealFrames, theme } from "./theme";
 
 export type Step = { icon: string; label: string };
 
@@ -11,6 +11,8 @@ export type FlowProps = {
 	/** The condition holding across every step, shown below the chain. */
 	footer?: Step;
 	icons?: Record<string, string>;
+	/** Seconds into the scene at which each step appears. */
+	beats?: number[];
 };
 
 /**
@@ -35,14 +37,22 @@ const scaleFor = (count: number) =>
  *
  * Three to five steps. Past that it is a diagram, and the skill says so.
  */
-export const Flow: React.FC<FlowProps> = ({ heading, steps, footer, icons }) => {
+export const Flow: React.FC<FlowProps> = ({ heading, steps, footer, icons, beats }) => {
 	const frame = useCurrentFrame();
-	const { durationInFrames } = useVideoConfig();
+	const { durationInFrames, fps } = useVideoConfig();
 	const size = scaleFor(steps.length);
 
-	// The footer is one more beat after the chain, so the chain lands first.
-	const beats = steps.length + (footer ? 1 : 0) + 1;
-	const at = (index: number) => beatAt(index, beats, durationInFrames);
+	const starts = revealFrames(steps.length, durationInFrames, fps, beats);
+	// The footer holds across every step rather than being one of them, so no
+	// phrase cues it. It lands a beat after the chain finishes, still inside
+	// the scene.
+	const footerStart = Math.min(
+		(starts[starts.length - 1] ?? 0) + Math.round(fps * 0.8),
+		durationInFrames - 1,
+	);
+	// Steps are one-based here: index 0 is the frame the chain starts drawing.
+	const at = (index: number) =>
+		index <= 0 ? 0 : index > steps.length ? footerStart : starts[index - 1];
 
 	const fade = (start: number, over = 12) =>
 		interpolate(frame, [start, start + over], [0, 1], {

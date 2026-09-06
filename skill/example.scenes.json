@@ -31,11 +31,26 @@
       "type": "flow",
       "heading": "narratr",
       "steps": [
-        { "icon": "file-text", "label": "Document" },
-        { "icon": "file-pen", "label": "Script" },
-        { "icon": "clapperboard", "label": "Narrated video" }
+        {
+          "icon": "file-text",
+          "label": "Document",
+          "cue": "You point it at a document"
+        },
+        {
+          "icon": "file-pen",
+          "label": "Script",
+          "cue": "it writes the script"
+        },
+        {
+          "icon": "clapperboard",
+          "label": "Narrated video",
+          "cue": "your laptop does the rest"
+        }
       ],
-      "footer": { "icon": "laptop-minimal", "label": "All on your laptop" },
+      "footer": {
+        "icon": "laptop-minimal",
+        "label": "All on your laptop"
+      },
       "narration": "Narrator turns a document into a narrated video, and it runs entirely on your own machine. You point it at a document, it writes the script, and your laptop does the rest."
     },
     {
@@ -43,9 +58,23 @@
       "type": "prose",
       "heading": "The usual failure",
       "bullets": [
-        { "text": "Slides first", "icon": "layout-template", "state": "struck" },
-        { "text": "Narration second", "icon": "mic", "state": "struck" },
-        { "text": "Drift forever", "icon": "triangle-alert" }
+        {
+          "text": "Slides first",
+          "icon": "layout-template",
+          "state": "struck",
+          "cue": "You build the slides first"
+        },
+        {
+          "text": "Narration second",
+          "icon": "mic",
+          "state": "struck",
+          "cue": "make the narration fit them"
+        },
+        {
+          "text": "Drift forever",
+          "icon": "triangle-alert",
+          "cue": "The timing drifts"
+        }
       ],
       "narration": "Every project like this fails the same way. You build the slides first, then try to make the narration fit them. The timing drifts, and every edit breaks the alignment all over again."
     },
@@ -54,19 +83,50 @@
       "type": "diagram",
       "heading": "Where the clock comes from",
       "mermaid": "flowchart LR\n    N@{ icon: \"lucide:mic\", label: \"Narration\" }\n    T@{ icon: \"lucide:captions\", label: \"Timings\" }\n    V@{ icon: \"lucide:image\", label: \"Visuals\" }\n    M@{ icon: \"lucide:film\", label: \"Assembly\" }\n    N --> T\n    N --> V\n    T --> M\n    V --> M",
-      "revealSteps": [["N"], ["T", "V"], ["M"]],
-      "narration": "Narration is rendered first, and it is measured. Those measurements go two ways at once: into the word timings that become captions, and into the length each scene is drawn to fit. Assembly joins the two back together."
+      "revealSteps": [
+        [
+          "N"
+        ],
+        [
+          "T",
+          "V"
+        ],
+        [
+          "M"
+        ]
+      ],
+      "narration": "Narration is rendered first, and it is measured. Those measurements go two ways at once: into the word timings that become captions, and into the length each scene is drawn to fit. Assembly joins the two back together.",
+      "revealCues": [
+        "Narration is rendered first",
+        "Those measurements go two ways",
+        "Assembly joins the two"
+      ]
     },
     {
       "id": "the-cost",
       "type": "cards",
       "heading": "What it costs",
       "cards": [
-        { "icon": "wallet", "title": "No API credits", "detail": "Nothing metered, nothing uploaded" },
-        { "icon": "clock", "title": "Twice the runtime", "detail": "A 2 min clip costs about 4 min" },
-        { "icon": "shield-check", "title": "Nothing leaves", "detail": "Every stage runs locally" }
+        {
+          "icon": "wallet",
+          "title": "No API credits",
+          "detail": "Nothing metered, nothing uploaded",
+          "cue": "There is no subscription"
+        },
+        {
+          "icon": "clock",
+          "title": "Twice the runtime",
+          "detail": "A 2 min clip costs about 4 min",
+          "cue": "What you pay instead is time"
+        },
+        {
+          "icon": "shield-check",
+          "title": "Nothing leaves",
+          "detail": "Every stage runs locally",
+          "cue": "Every stage runs on your own machine"
+        }
       ],
-      "narration": "A video costs nothing to make. There is no subscription and no metered API. What you pay instead is time, at roughly twice the length of the finished video, and none of it needs you watching."
+      "narration": "A video costs nothing to make. There is no subscription and no metered API. What you pay instead is time, at roughly twice the length of the finished video, and none of it needs you watching. Every stage runs on your own machine, so nothing is uploaded."
     },
     {
       "id": "the-command",
@@ -81,8 +141,16 @@
       "type": "prose",
       "heading": "Where it stands",
       "bullets": [
-        { "text": "Runs resume", "icon": "rotate-ccw" },
-        { "text": "Edits are cheap", "icon": "pencil" }
+        {
+          "text": "Runs resume",
+          "icon": "rotate-ccw",
+          "cue": "Runs checkpoint after every scene"
+        },
+        {
+          "text": "Edits are cheap",
+          "icon": "pencil",
+          "cue": "editing one slide costs seconds"
+        }
       ],
       "narration": "Runs checkpoint after every scene, so a closed laptop lid costs ninety seconds rather than the afternoon. And because everything is cached by content, editing one slide costs seconds rather than a rebuild."
     }
