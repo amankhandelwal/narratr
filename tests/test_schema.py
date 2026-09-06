@@ -74,7 +74,26 @@ def test_reveal_step_id_with_a_space_is_rejected(spec):
 def test_an_ordinary_reveal_id_is_accepted(spec):
 	scene = next(s for s in spec["scenes"] if s["type"] == "diagram")
 	scene["revealSteps"] = [["A", "node_2", "Step-3"]]
+	recue(scene)
 	assert validate(spec) == []
+
+
+def recue(scene: dict, narration: str | None = None) -> None:
+	"""Re-point a scene's cues after a test rewrites its narration or reveals.
+
+	Cues are a hard gate, so a test that replaces the words or the reveal
+	groups has to keep them consistent -- the same way one that adds a block
+	has to map it. The phrase is the narration's opening, which every scene
+	has and which always resolves.
+	"""
+	if narration is not None:
+		scene["narration"] = narration
+	opening = " ".join(scene["narration"].split()[:3])
+	for field in ("bullets", "steps", "cards"):
+		for element in scene.get(field, []):
+			element["cue"] = opening
+	if "revealSteps" in scene:
+		scene["revealCues"] = [opening] * len(scene["revealSteps"])
 
 
 # --------------------------------------------------------------------- caps
@@ -89,7 +108,7 @@ def test_over_long_narration_is_rejected(spec):
 
 def test_narration_of_a_normal_length_is_accepted(spec):
 	"""A minute of speech is roughly 900 characters; the cap is 5000."""
-	spec["scenes"][0]["narration"] = "This is a sentence of narration. " * 27
+	recue(spec["scenes"][0], "This is a sentence of narration. " * 27)
 	assert len(spec["scenes"][0]["narration"]) > 850
 	assert validate(spec) == []
 
@@ -127,6 +146,7 @@ def test_mermaid_of_a_normal_length_is_accepted(spec):
 	scene = next(s for s in spec["scenes"] if s["type"] == "diagram")
 	scene["mermaid"] = "flowchart LR\n" + "".join(f"  n{i} --> n{i + 1}\n" for i in range(20))
 	scene["revealSteps"] = [["n0", "n1"]]
+	recue(scene)
 	assert validate(spec) == []
 
 

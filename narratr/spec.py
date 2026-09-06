@@ -13,7 +13,7 @@ from typing import Any
 
 import jsonschema
 
-from narratr import icons
+from narratr import cues, icons
 from narratr.errors import PipelineError
 from narratr.paths import SCHEMA
 
@@ -126,6 +126,13 @@ def validate(spec: dict[str, Any]) -> list[str]:
 	# Icon names are Claude's to invent, so they are checked here rather than
 	# discovered on playback. Same reason the coverage gate exists.
 	problems += icons.problems(spec)
+
+	# And the same reason again: a reveal with no cue plays at a guessed time
+	# rather than on the words that introduce it, which is only visible once
+	# there is a video to watch.
+	for scene in scenes:
+		if "type" in scene:
+			problems += cues.problems(scene)
 
 	return problems
 

@@ -18,7 +18,7 @@ Five scene types. Choose by what the content *is*, not for variety:
 |---|---|---|
 | Ordered steps, a pipeline | `flow` | `steps` (2–5), optional `footer` |
 | Parallel things being compared | `cards` | `cards` (2–4) |
-| Structure or relationships | `diagram` | `mermaid` + `revealSteps` |
+| Structure or relationships | `diagram` | `mermaid` + `revealSteps` + `revealCues` |
 | Source code | `code` | `code` + `lang` |
 | Anything else — properties, claims | `prose` | `bullets` (≤6) |
 
@@ -141,6 +141,35 @@ each a distinct job: one carries the principle, the other the mechanism. Making
 the second one a bulleted list hides the duplication instead of fixing it, and
 leaves a sequence rendered as a list.
 
+## Cues
+
+Every bullet, step and card carries a `cue`: a verbatim phrase from that
+scene's own narration. `diagram` scenes carry `revealCues`, one phrase per
+`revealSteps` group, in the same order.
+
+The element appears as the phrase is spoken. Without cues, elements were spread
+evenly across the first 60% of the scene no matter what was being said, which
+on a forty-second scene put the last step nine seconds ahead of the words that
+introduce it and left the final third playing against a finished slide.
+
+```json
+{ "text": "Coverage you can see", "icon": "gauge", "cue": "a visible reconciliation coverage number" }
+```
+
+- **Verbatim, from that scene's narration.** Not a paraphrase. `narratr
+  validate` rejects a phrase that is not in the narration, and rejects an
+  element with no cue at all, before any compute is spent.
+- **Long enough to be unique.** Matching takes the first occurrence, so "the"
+  cues the wrong moment. Four or five words is usually right.
+- **In reveal order.** Cue *n* must not be spoken before cue *n−1*.
+- **Cue the phrase that introduces the element**, not one that merely mentions
+  it later. The element should appear as the narration arrives at it.
+
+If an element has no natural phrase behind it, that is the script telling you
+something: either the narration does not actually cover that element, or the
+element does not belong on the slide. Fix the mismatch rather than reaching for
+a vague cue.
+
 ## Icons
 
 Every bullet, step, card and diagram node takes a Lucide icon, kebab-case, in
@@ -171,3 +200,4 @@ before the right way; do not strike a consequence, only a choice.
 - Fragments on screen, never sentences — detail lives in the narration
 - Six bullets maximum, 2–5 flow steps, 2–4 cards
 - Diagram scenes carry `mermaid` plus `revealSteps` grouping node ids into beats
+- Every revealed element carries a `cue`, verbatim from that scene's narration

@@ -34,7 +34,7 @@ entry, a scene id, or a run directory.
 
 | `type` | Fields |
 |---|---|
-| `prose` | `bullets` — strings, or `{text, icon?, state?}` |
+| `prose` | `bullets` — `{text, icon?, state?}` |
 | `flow` | `steps` — `{icon, label}`; `footer` — one more of the same, or `null` |
 | `cards` | `cards` — `{title, detail?, icon?}` |
 | `diagram` | `svg` — Mermaid output as markup; `revealSteps` — node ids grouped into beats |
@@ -42,6 +42,16 @@ entry, a scene id, or a run directory.
 
 **`icons`**, when the scene names any: a map of Lucide name → SVG markup. Keyed
 by name because one scene may use the same icon twice.
+
+**`beats`**, when the scene reveals anything: seconds into the scene at which
+each element appears, one per element in reveal order. Python resolves them
+from each element's `cue` — a verbatim phrase from the narration — against the
+aligned word timings, so an element lands on the words that introduce it.
+
+The renderer must treat `beats` as optional and fall back to its own spacing
+when it is absent: `narratr preview` renders before any audio exists, so there
+is nothing to align against. It must not assume `beats` is complete either —
+an entry may be missing where a cue could not be resolved.
 
 ### Everything is resolved before the renderer starts
 

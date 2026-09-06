@@ -33,11 +33,13 @@
       "steps": [
         {
           "icon": "file-text",
-          "label": "Document"
+          "label": "Document",
+          "cue": "You point it at a document"
         },
         {
           "icon": "clapperboard",
-          "label": "Narrated video"
+          "label": "Narrated video",
+          "cue": "your laptop does the rest"
         }
       ],
       "footer": {
@@ -54,16 +56,19 @@
         {
           "text": "Slides first",
           "icon": "layout-template",
-          "state": "struck"
+          "state": "struck",
+          "cue": "You build the slides first"
         },
         {
           "text": "Narration second",
           "icon": "mic",
-          "state": "struck"
+          "state": "struck",
+          "cue": "make the narration fit them"
         },
         {
           "text": "Drift forever",
-          "icon": "triangle-alert"
+          "icon": "triangle-alert",
+          "cue": "The timing drifts"
         }
       ],
       "narration": "Every project like this fails the same way. You build the slides first, then try to make the narration fit them. The timing drifts, and there is no fixing it, because every edit breaks the alignment all over again."
@@ -75,15 +80,18 @@
       "steps": [
         {
           "icon": "file-pen",
-          "label": "Script"
+          "label": "Script",
+          "cue": "The script comes first"
         },
         {
           "icon": "audio-lines",
-          "label": "Audio"
+          "label": "Audio",
+          "cue": "Speech renders each scene"
         },
         {
           "icon": "image",
-          "label": "Pictures"
+          "label": "Pictures",
+          "cue": "does anything get drawn"
         }
       ],
       "narration": "So invert it. The script comes first. Speech renders each scene and reports exactly how long it turned out to be. Only then does anything get drawn, and the renderer is simply told how much time it has. Synchronisation stops being a problem you solve."
@@ -108,7 +116,13 @@
           "E"
         ]
       ],
-      "narration": "A document goes in and becomes a scene list. Each scene is narrated and measured. The visuals are drawn to fit the time the narration takes. Then the pieces are joined into one file."
+      "narration": "A document goes in and becomes a scene list. Each scene is narrated and measured. The visuals are drawn to fit the time the narration takes. Then the pieces are joined into one file.",
+      "revealCues": [
+        "A document goes in",
+        "Each scene is narrated",
+        "The visuals are drawn",
+        "the pieces are joined"
+      ]
     },
     {
       "id": "the-cost",
@@ -118,17 +132,20 @@
         {
           "icon": "credit-card",
           "title": "No API credits",
-          "detail": "Nothing metered, nothing uploaded"
+          "detail": "Nothing metered, nothing uploaded",
+          "cue": "There is no subscription"
         },
         {
           "icon": "calendar-x",
           "title": "No monthly floor",
-          "detail": "No subscription to clear"
+          "detail": "No subscription to clear",
+          "cue": "no monthly floor to clear"
         },
         {
           "icon": "clock",
           "title": "Twice the runtime",
-          "detail": "A 2 min clip costs about 4 min"
+          "detail": "A 2 min clip costs about 4 min",
+          "cue": "What you pay instead is time"
         }
       ],
       "narration": "A video costs nothing to make. There is no subscription to buy and no monthly floor to clear. What you pay instead is time, at roughly twice the length of the finished video. A two minute clip takes about four minutes, and none of it needs you watching."
@@ -140,15 +157,18 @@
       "bullets": [
         {
           "text": "Voice works",
-          "icon": "mic-vocal"
+          "icon": "mic-vocal",
+          "cue": "the whole pipeline works"
         },
         {
           "text": "Runs resume",
-          "icon": "rotate-ccw"
+          "icon": "rotate-ccw",
+          "cue": "Runs checkpoint after every scene"
         },
         {
           "text": "Edits are cheap",
-          "icon": "pencil"
+          "icon": "pencil",
+          "cue": "editing one slide costs seconds"
         }
       ],
       "narration": "As things stand, the whole pipeline works. Runs checkpoint after every scene, so a closed laptop lid costs you ninety seconds rather than the afternoon. And because everything is cached by content, editing one slide costs seconds rather than a rebuild."

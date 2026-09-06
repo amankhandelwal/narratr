@@ -1,6 +1,6 @@
 import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
-import { accent, beatAt, theme } from "./theme";
+import { accent, revealFrames, theme } from "./theme";
 
 export type DiagramProps = {
 	heading?: string;
@@ -8,6 +8,8 @@ export type DiagramProps = {
 	svg: string;
 	/** Groups of mermaid node ids, each revealed as one beat. */
 	revealSteps: string[][];
+	/** Seconds into the scene at which each group appears. */
+	beats?: number[];
 };
 
 // Mermaid's SVG structure is not a public API. Two shapes are load-bearing
@@ -71,15 +73,13 @@ export const edgeBeat = (dataId: string, revealSteps: string[][]) => {
 	return Math.max(from?.beat ?? 0, to?.beat ?? 0);
 };
 
-export const Diagram: React.FC<DiagramProps> = ({ heading, svg, revealSteps }) => {
+export const Diagram: React.FC<DiagramProps> = ({ heading, svg, revealSteps, beats }) => {
 	const frame = useCurrentFrame();
-	const { durationInFrames } = useVideoConfig();
+	const { durationInFrames, fps } = useVideoConfig();
+	const starts = revealFrames(revealSteps.length, durationInFrames, fps, beats);
 
-	// One more beat than there are groups, and the first group starts on beat
-	// one -- the same offset prose, cards and flow use, so a diagram's opening
-	// group settles in rather than being on screen before the narration is.
 	const opacityAt = (beat: number) => {
-		const start = beatAt(beat + 1, revealSteps.length + 1, durationInFrames);
+		const start = starts[beat];
 		return interpolate(frame, [start, start + 14], [0, 1], {
 			extrapolateLeft: "clamp",
 			extrapolateRight: "clamp",

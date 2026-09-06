@@ -28,8 +28,35 @@ const ACCENTS = [
 
 export const accent = (i: number) => ACCENTS[i % ACCENTS.length];
 
-/** Reveal beats across the scene, leaving a beat of settle at the end. */
+/**
+ * Even spacing across the first 60% of the scene.
+ *
+ * The fallback only. It knows nothing about the narration, so on a long scene
+ * it put the last element nine seconds ahead of the words introducing it and
+ * left the final third playing against a finished slide. `revealFrames` uses
+ * the cued beats instead wherever they exist; this is what is left for the
+ * preview, which has no audio to align against.
+ */
 export const beatAt = (index: number, total: number, durationInFrames: number) => {
 	const usable = durationInFrames * 0.6;
 	return (usable / Math.max(total, 1)) * index;
 };
+
+/**
+ * The frame each element is revealed on.
+ *
+ * `beats` are seconds into the scene, resolved in Python from the cue phrases
+ * against the aligned narration -- so an element appears exactly as the words
+ * that introduce it are spoken. Absent, the even spacing above stands in.
+ */
+export const revealFrames = (
+	count: number,
+	durationInFrames: number,
+	fps: number,
+	beats?: number[],
+): number[] =>
+	Array.from({ length: count }, (_, i) =>
+		beats?.[i] != null
+			? Math.min(Math.round(beats[i] * fps), durationInFrames - 1)
+			: beatAt(i + 1, count + 1, durationInFrames),
+	);

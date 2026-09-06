@@ -6,6 +6,7 @@ real-time factor of 1.59, so a 36-minute video costs roughly 100 minutes here.
 
 from __future__ import annotations
 
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,66 @@ from narratr.state import Manifest
 
 class NarrationError(PipelineError):
 	"""Narration cannot proceed as configured."""
+
+
+# Chatterbox caps generation at `max_gen_len=1000` speech tokens, roughly forty
+# seconds. Handed more text than fits, it does not truncate -- it compresses,
+# rushing and slurring the whole scene to land inside the budget. A 155-word
+# scene came back at 4.8 words/second against a natural 3.0. So narration is
+# split into sentence-sized pieces, each generated well inside the ceiling and
+# concatenated. The model already appends silence per call, which is what
+# carries the sentence pause.
+BUDGET = 280
+
+_SENTENCE = re.compile(r"(?<=[.?!])\s+")
+_CLAUSE = re.compile(r"(?<=[,;:])\s+")
+
+
+def _pack(pieces: list[str], budget: int) -> list[str]:
+	"""Greedily join pieces while they fit."""
+	out: list[str] = []
+	for piece in pieces:
+		if out and len(out[-1]) + 1 + len(piece) <= budget:
+			out[-1] = f"{out[-1]} {piece}"
+		else:
+			out.append(piece)
+	return out
+
+
+def split_narration(text: str, budget: int = BUDGET) -> list[str]:
+	"""Narration as generation-sized chunks, in order, losing no words.
+
+	Sentences first; a sentence longer than the budget falls back to clause
+	boundaries, then to a hard word split, so no chunk can exceed the ceiling
+	whatever the punctuation looks like.
+	"""
+	sentences = [s for s in (s.strip() for s in _SENTENCE.split(text)) if s]
+	if not sentences:
+		return []
+
+	sized: list[str] = []
+	for sentence in sentences:
+		if len(sentence) <= budget:
+			sized.append(sentence)
+			continue
+		clauses = _pack([c for c in (c.strip() for c in _CLAUSE.split(sentence)) if c], budget)
+		for clause in clauses:
+			if len(clause) <= budget:
+				sized.append(clause)
+				continue
+			# No punctuation to lean on. Split on words, which is ugly to hear
+			# but never drops any.
+			words, line = clause.split(), ""
+			for word in words:
+				if line and len(line) + 1 + len(word) > budget:
+					sized.append(line)
+					line = word
+				else:
+					line = f"{line} {word}".strip()
+			if line:
+				sized.append(line)
+
+	return _pack(sized, budget)
 
 
 def _resolve_voice(spec: dict[str, Any]) -> Path:
@@ -103,7 +164,11 @@ def run(spec: dict[str, Any], manifest: Manifest, run_dir: Path) -> None:
 			# scene the same voice it would have had in a cold one, whatever
 			# else was generated first.
 			torch.manual_seed(seed)
-		wav = model.generate(by_id[scene_id]["narration"], audio_prompt_path=str(reference))
+		pieces = [
+			model.generate(chunk, audio_prompt_path=str(reference))
+			for chunk in split_narration(by_id[scene_id]["narration"])
+		]
+		wav = torch.cat(pieces, dim=-1) if len(pieces) > 1 else pieces[0]
 		took = time.perf_counter() - started
 		seconds = wav.shape[-1] / model.sr
 

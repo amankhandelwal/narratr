@@ -23,7 +23,11 @@ const DEFAULTS: SceneProps = {
 	type: "prose",
 	durationInSeconds: 12,
 	heading: "The usual failure",
-	bullets: ["Slides first", "Narration second", "Drift forever"],
+	bullets: [
+		{ text: "Slides first" },
+		{ text: "Narration second" },
+		{ text: "Drift forever" },
+	],
 };
 
 const INTRO_DEFAULTS: IntroProps = {

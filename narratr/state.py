@@ -79,7 +79,7 @@ def audio_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 			scene["narration"],
 			_voice_fingerprint(voice.get("reference")),
 			voice.get("seed"),
-			"chatterbox-turbo",
+			"chatterbox-turbo-chunked",
 		]
 	)
 
@@ -92,6 +92,7 @@ VISUAL_FIELDS = (
 	"bullets",
 	"mermaid",
 	"revealSteps",
+	"revealCues",
 	"code",
 	"lang",
 	"steps",
@@ -174,8 +175,12 @@ def video_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 	Keyed separately from audio so editing a diagram re-renders the video and
 	reuses the narration, and editing narration does both.
 	"""
+	# The align key is in here because reveal beats are read from the aligned
+	# narration: re-aligning a scene moves when its elements appear, so the
+	# frames have to be redrawn even though nothing about the slide changed.
 	return digest(
-		[speech_key(scene, spec), renderer_digest()] + [scene.get(field) for field in VISUAL_FIELDS]
+		[speech_key(scene, spec), align_key(scene, spec), renderer_digest()]
+		+ [scene.get(field) for field in VISUAL_FIELDS]
 	)
 
 
