@@ -1,0 +1,158 @@
+narratr License
+Version 1.0
+
+Copyright (c) 2026 Aman Khandelwal (https://github.com/amankhandelwal/narratr)
+
+narratr turns a document into a narrated video. It is two things together: a
+program that narrates, renders and assembles the video, and a Claude skill
+(the `skill/` directory) that writes the script the program renders. Both are
+the original work of the Licensor, released so that people can use them
+freely. This license keeps it that way: free to use, free to share, and always
+credited.
+
+This is a source-available license. It is modelled on the permissive shape of
+the MIT and Apache 2.0 licenses, but it adds conditions those licenses do not
+have (Sections 3 to 6). It is not an OSI-approved open source license.
+
+
+1. Definitions
+
+"Licensor" means Aman Khandelwal, the copyright holder.
+
+"Software" means everything in this repository -- source code, the Claude
+skill, prompts, schemas, templates, documentation, configuration and assets --
+except the Third-Party Components listed in Section 8.
+
+"Derivative Work" means any work that is based on, or incorporates, all or any
+part of the Software, whether modified or not. A fork, a port to another
+language, a copy of the skill or its prompts, and a program that reuses the
+Software's code are all Derivative Works.
+
+"Output" means any video, audio, image, caption file or other media produced,
+in whole or in part, by the Software or by a Derivative Work.
+
+"Intro" means the title card that opens every Output: the narratr mark
+(`render/remotion/public/narratr-mark.png` and `assets/Narratr.png`), the
+narratr name, the intro music (`assets/intro.mp3`), and their layout, timing
+and animation as implemented by the Software (`render/remotion/src/Intro.tsx`
+and `narratr/intro.py`). The document title shown on the card is supplied by
+the user and is not part of the Intro.
+
+"Commercial Distribution" means selling, renting, licensing or sublicensing
+the Software or a Derivative Work, or charging any fee, subscription, credit
+or other consideration for access to it or its functionality, including
+offering it as a hosted or managed service.
+
+
+2. Grant of rights
+
+Subject to the conditions of this license, the Licensor grants you a
+worldwide, royalty-free, non-exclusive license to use, copy, modify, merge and
+distribute the Software and Derivative Works, and to create, use, publish and
+distribute Output for any purpose, personal or commercial.
+
+
+3. Branding of Output
+
+(a) Every Output must open with the unmodified Intro, exactly as the Software
+    produces it. You may not remove, shorten, replace, obscure, re-time,
+    re-colour or otherwise alter the Intro, its mark, its name or its music.
+
+(b) The name "narratr" must remain visible in the Intro of every Output.
+
+(c) This condition applies to the Software and to every Derivative Work. It
+    continues to apply if the Software is forked, cloned, copied or modified,
+    including where the code that produces the Intro has been changed or
+    removed. Changing the code does not release Output from this condition.
+
+(d) Editing Output after it is produced (trimming, re-encoding, cutting it
+    into other material) is permitted, provided the Intro stays intact at the
+    start of the narratr-produced portion.
+
+
+4. Attribution and credit
+
+(a) You must keep this license and the copyright notice above in every copy
+    of the Software and every Derivative Work, and include them with any
+    distribution of either.
+
+(b) Any Derivative Work, and any public description of it (a README, a
+    website, a store listing, a paper, a talk), must state clearly that it is
+    based on narratr, created by Aman Khandelwal, and link to
+    https://github.com/amankhandelwal/narratr.
+
+(c) You may not present the Software, the skill, its method of turning a
+    document into a narrated video, or any Derivative Work as your own
+    original creation, nor imply that you, rather than the Licensor, created
+    them.
+
+(d) You may not use the narratr name or mark to imply that the Licensor
+    endorses you, your Derivative Work or your Output, except as required by
+    Section 3.
+
+
+5. Free forever
+
+(a) The Software and every Derivative Work must be made available to its
+    users free of charge. Commercial Distribution is not permitted.
+
+(b) Any Derivative Work you distribute must be distributed under this same
+    license, with its source code available, so that the people who receive
+    it get the same freedoms and the same obligations.
+
+(c) This Section restricts charging for the software. It does not restrict
+    Output: videos made with narratr may be published, monetised and used
+    commercially, provided they carry the Intro under Section 3.
+
+
+6. Termination
+
+If you breach any condition of this license, your rights under it end
+automatically. They are restored if you cure the breach within 30 days of
+becoming aware of it, unless you have breached this license before. Output
+you distributed while in breach is not licensed.
+
+
+7. Disclaimer of warranty and limitation of liability
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE, ITS OUTPUT, OR THE USE OR OTHER DEALINGS IN EITHER.
+
+
+8. Third-party components
+
+The following are not the Licensor's work and are not licensed under this
+license. Each remains under its own terms, which you must follow separately.
+This license does not grant, and cannot grant, any right to them.
+
+Remotion (render/remotion, installed from npm)
+    Renders every scene. Remotion License, https://www.remotion.dev/license
+    Free for individuals, for-profit organisations with up to 3 employees,
+    non-profits, and for evaluation -- including commercial use of the
+    videos. A for-profit organisation larger than that needs a paid Remotion
+    Company License (https://www.remotion.pro/license) before using narratr,
+    because narratr runs Remotion. Obtaining it is your responsibility.
+
+Intro music (assets/intro.mp3)
+    "Cinematic Piano Hit" by Universfield, from Pixabay:
+    https://cdn.pixabay.com/download/audio/2026/07/14/audio_8f98537420.mp3?filename=universfield-cinematic-piano-hit-567216.mp3
+    Royalty-free under the Pixabay Content License,
+    https://pixabay.com/service/license-summary/ -- commercial use allowed,
+    no attribution required. It may not be sold or redistributed on a
+    standalone basis (as the bare audio file, apart from a video or the
+    Software).
+
+Sample voice (assets/voices/sample-01.wav)
+    Default voice audio generated with Chatterbox by Resemble AI, MIT
+    License, https://github.com/resemble-ai/chatterbox. Audio produced by
+    Chatterbox carries Resemble AI's imperceptible Perth watermark.
+
+Other dependencies
+    Chatterbox, PyTorch, torchaudio, FFmpeg, Mermaid, Shiki, Lucide, React
+    and the rest of the dependencies in pyproject.toml and
+    render/remotion/package.json are installed separately, each under its
+    own license.

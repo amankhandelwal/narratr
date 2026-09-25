@@ -182,8 +182,11 @@ Every video opens with a four-second card: the mark, the document's title, and
 told, audio padded to a whole number of frames — so assembly does not treat it
 as a special case.
 
-Replace either asset to rebrand. `assets/intro.mp3` sets the length of the card,
-and `render/remotion/public/narratr-mark.png` is the image. The sting is
+**The card is required.** The [licence](LICENSE) requires every video made
+with narratr, or with anything built from it, to open with this card unchanged
+and the narratr name visible — forks included. `assets/intro.mp3` sets the
+length of the card, and `render/remotion/public/narratr-mark.png` is the image.
+The sting is
 attenuated 8 dB on the way in, because it is mastered about eleven decibels
 louder than the narration that follows it.
 
@@ -264,15 +267,29 @@ that invalidates the audio, its timings, and the picture, because a scene's
 length comes from its audio. Changing only bullets or a diagram re-renders just
 the video.
 
-## Licence note
+## Licence
 
-Remotion, which renders the scenes, is free for individuals and organizations
-of up to 3 people. Above that it requires a paid Company License,
-counted by headcount rather than by whether anything is sold — internal use at a
-company counts. No account or licence key is needed for free use.
+narratr is free to use, and the videos it makes are yours to publish — including
+commercially — under the [narratr License](LICENSE). In short:
 
-`render/CONTRACT.md` isolates the renderer so Motion Canvas (MIT) can replace it
-if that becomes a problem.
+- **Every video opens with the narratr title card, unmodified.** That holds for
+  forks and modified copies too.
+- **Credit the work.** Anything built from narratr says so, names its author and
+  links back here.
+- **Keep it free.** narratr and anything built from it may not be sold or
+  offered as a paid service, and is shared under the same licence.
+
+It is source-available rather than OSI open source, because of those
+conditions. The [LICENSE](LICENSE) file is the authoritative text.
+
+**Third-party parts keep their own terms.** Remotion, which renders the scenes,
+is free for individuals, non-profits and companies of up to 3 people, even for
+commercial videos; a larger for-profit company needs a paid
+[Company License](https://www.remotion.pro/license) — counted by headcount, and
+internal use counts. `render/CONTRACT.md` isolates the renderer so Motion Canvas
+(MIT) can replace it if that becomes a problem. The intro music is royalty-free
+from [Pixabay](https://pixabay.com/service/license-summary/), and the sample
+voice is Chatterbox's default audio (MIT).
 
 ## Design
 

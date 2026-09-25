@@ -10,6 +10,7 @@ name = "narratr"
 version = "0.1.0"
 description = "Turn a document into a narrated video, locally"
 readme = "README.md"
+license = { file = "LICENSE" }
 # Verified on 3.11.9. Capped below 3.13 because the Chatterbox stack has not
 # been checked there.
 requires-python = ">=3.11.9,<3.13"
