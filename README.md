@@ -96,7 +96,7 @@ uv run narratr render scenes.json --only the-flow
 
 Repeatable, and it skips stitching so `video.mp4` is never left partial.
 
-Runs land in `runs/<title> [DD-MM HH:MM AM/PM]/`. `narratr status` takes a name
+Runs land in `runs/<title> [DD-MM HH.MM AM/PM]/`. `narratr status` takes a name
 or any prefix of one, and defaults to the most recent run.
 
 `--detach` survives the terminal closing, the parent shell exiting, and the
@@ -106,7 +106,7 @@ instead of minting a second one a moment later.
 
 **Re-running the same command starts a new run rather than resuming the old
 one.** The directory name carries the clock, so a second `narratr render` mints
-`runs/<title> [DD-MM HH:MM AM/PM]/` afresh with an empty manifest — three goes
+`runs/<title> [DD-MM HH.MM AM/PM]/` afresh with an empty manifest — three goes
 at one spec leave three directories. Recovery comes from `store/`, not from the
 manifest: every scene the interrupted run finished is already sitting there
 under its content address, so the new run reuses it and only redoes the scene it
