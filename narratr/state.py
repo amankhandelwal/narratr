@@ -190,24 +190,30 @@ def video_key(scene: dict[str, Any], spec: dict[str, Any]) -> str:
 UNSAFE = re.compile(r"[/\\:\x00-\x1f]+")
 
 
-def safe_name(raw: str) -> str:
-	"""A string that cannot escape or nest the directory it names."""
+def safe_name(raw: str, limit: int | None = 60) -> str:
+	"""A string that cannot escape or nest the directory it names.
+
+	`limit` caps a title. A whole run name is already capped where its title
+	was, so passing it back with `limit=None` must leave it unchanged.
+	"""
 	# A slash would be read as a path separator and silently nest the
 	# directory; `..` would climb out of runs/. Collapse whitespace first: a
 	# newline is whitespace, and substituting it as an unsafe character would
 	# leave a dash mid-title.
-	cleaned = UNSAFE.sub("-", " ".join(str(raw).split()))[:60].strip(" .")
+	cleaned = UNSAFE.sub("-", " ".join(str(raw).split()))[:limit].strip(" .")
 	return cleaned or "untitled"
 
 
 def run_dir_name(spec: dict[str, Any], when: datetime | None = None) -> str:
-	"""`<title> [DD-MM HH:MM AM/PM]`.
+	"""`<title> [DD-MM HH.MM AM/PM]`.
 
 	A slash would be read as a path separator and silently nest the directory,
-	so the date is dash-separated.
+	so the date is dash-separated. The time takes a dot rather than a colon:
+	safe_name replaces colons, and a detached child sanitises the name it is
+	handed, so a colon here sent its output to a second directory.
 	"""
 	title = safe_name(spec.get("source", {}).get("title", "untitled"))
-	stamp = (when or datetime.now()).strftime("%d-%m %I:%M %p")
+	stamp = (when or datetime.now()).strftime("%d-%m %I.%M %p")
 	return f"{title} [{stamp}]"
 
 

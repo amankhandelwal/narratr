@@ -91,7 +91,7 @@ def test_run_dir_name_reads_like_a_folder_a_person_named():
 
 	spec = {"source": {"title": "Audio-first video generation"}}
 	name = run_dir_name(spec, datetime(2026, 9, 5, 13, 22))
-	assert name == "Audio-first video generation [05-09 01:22 PM]"
+	assert name == "Audio-first video generation [05-09 01.22 PM]"
 
 
 def test_run_dir_name_never_contains_a_path_separator():

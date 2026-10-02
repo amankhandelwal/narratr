@@ -410,7 +410,7 @@ Rendering came in faster than realtime, against an estimate that was wrong by ro
 | Single-scene iteration | working, `--only` |
 | Silent-audio guard | working, fails below −80 dB |
 
-A run produces `runs/<title> [DD-MM HH:MM AM/PM]/video.mp4` with chapters, plus
+A run produces `runs/<title> [DD-MM HH.MM AM/PM]/video.mp4` with chapters, plus
 `captions.srt`.
 
 ---

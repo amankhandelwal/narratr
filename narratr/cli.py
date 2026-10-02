@@ -93,8 +93,10 @@ def cmd_render(args: argparse.Namespace) -> int:
 
 	# --run-name is internal, but it still names a directory. run_dir_name
 	# sanitises; this used to not, so `--run-name ../../tmp/x` wrote outside
-	# runs/ and was forwarded verbatim to the detached child.
-	run_id = safe_name(args.run_name) if args.run_name else run_dir_name(spec)
+	# runs/ and was forwarded verbatim to the detached child. No length cap:
+	# the name was capped when the parent made it, and re-capping it here sent
+	# a long-titled run's output to a different directory from its run.log.
+	run_id = safe_name(args.run_name, limit=None) if args.run_name else run_dir_name(spec)
 	run_dir = RUNS / run_id
 	run_dir.mkdir(parents=True, exist_ok=True)
 
