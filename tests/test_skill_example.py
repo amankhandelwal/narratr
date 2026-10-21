@@ -1,6 +1,6 @@
 """The spec bundled with the skill is what Claude copies. It must not go stale.
 
-`skill/example.scenes.json` travels with the skill directory, so a session
+`skills/narratr/example.scenes.json` travels with the skill directory, so a session
 loading the skill from `~/.claude/skills/narratr` reads it without knowing where
 the checkout lives. That makes it the most-copied file in the project and the
 one most worth pinning: a reference that quietly stops matching the schema
@@ -16,8 +16,8 @@ import pytest
 from narratr.paths import ROOT
 from narratr.spec import validate
 
-EXAMPLE = ROOT / "skill" / "example.scenes.json"
-GUIDE = ROOT / "skill" / "presentation.md"
+EXAMPLE = ROOT / "skills" / "narratr" / "example.scenes.json"
+GUIDE = ROOT / "skills" / "narratr" / "shapes.md"
 
 
 @pytest.fixture(scope="module")
@@ -80,6 +80,6 @@ def test_the_guide_travels_with_the_skill():
 
 
 def test_the_skill_sends_the_reader_to_both():
-	body = (ROOT / "skill" / "SKILL.md").read_text()
-	assert "presentation.md" in body
+	body = (ROOT / "skills" / "narratr" / "SKILL.md").read_text()
+	assert "shapes.md" in body
 	assert "example.scenes.json" in body

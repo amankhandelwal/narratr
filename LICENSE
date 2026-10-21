@@ -5,7 +5,7 @@ Copyright (c) 2026 Aman Khandelwal (https://github.com/amankhandelwal/narratr)
 
 narratr turns a document into a narrated video. It is two things together: a
 program that narrates, renders and assembles the video, and a Claude skill
-(the `skill/` directory) that writes the script the program renders. Both are
+(the `skills/` directory) that writes the script the program renders. Both are
 the original work of the Licensor, released so that people can use them
 freely. This license keeps it that way: free to use, free to share, and always
 credited.

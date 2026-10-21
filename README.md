@@ -49,17 +49,18 @@ voice reference, one line each, and each failing line names its own fix. It ends
 in `✓ Ready`, or in `❌ Not ready` and a non-zero exit — the skill checks it
 before spending anything.
 
-Then let Claude see the skill:
+Then let Claude see the skills:
 
 ```sh
-ln -s "$PWD/skill" ~/.claude/skills/narratr
+ln -s "$PWD/skills/narratr" ~/.claude/skills/narratr
+ln -s "$PWD/skills/presentation" ~/.claude/skills/presentation
 ```
 
-Start a new Claude session for it to load. The link covers the whole directory,
-so three files travel with it: `SKILL.md` (the workflow), `presentation.md` (how
-to choose a scene's shape) and `example.scenes.json` (a complete spec using
-every shape). A session reads all three without needing to know where this
-checkout lives.
+Start a new Claude session for them to load. Each link covers a whole
+directory, so the files travel with it: `SKILL.md` (the workflow), `shapes.md`
+(how to choose a scene's shape, shared by both skills) and
+`example.scenes.json` (a complete spec). A session reads them without needing
+to know where this checkout lives.
 
 ## Use
 
@@ -172,7 +173,7 @@ uv run narratr icons clapper     # clapperboard
 An icon name that does not exist fails `narratr validate` before any compute,
 with near misses — the same gate that catches a dropped source block.
 
-`skill/SKILL.md` is what actually chooses between the shapes; the renderer only
+`skills/narratr/SKILL.md` is what actually chooses between the shapes; the renderer only
 makes each one possible.
 
 ## The title card
