@@ -176,6 +176,27 @@ with near misses — the same gate that catches a dropped source block.
 `skills/narratr/SKILL.md` is what actually chooses between the shapes; the renderer only
 makes each one possible.
 
+## Presentations
+
+The same `scenes.json` also builds a deck you present yourself:
+
+```sh
+uv run narratr deck scenes.json   # → decks/<title>/deck.pptx and script.md
+```
+
+Slides are editable shapes, reveals happen on click, and the narration becomes
+the speaker notes with `▶️` wherever to click; `script.md` is the same script
+for printing. Flowcharts are rebuilt as native boxes and arrows, so a node can
+be dragged and its edges follow.
+
+Two fields only a deck uses: `theme` (colours and Google Fonts) and images
+(an `image` scene, or `image` on a `prose` scene or a card). `narratr render`
+refuses a spec with images.
+
+Upload the `.pptx` to Google Drive and open it with Google Slides; the
+animations and notes survive the import. The `presentation` skill drives all
+of this from a document.
+
 ## The title card
 
 Every video opens with a four-second card: the mark, the document's title, and
