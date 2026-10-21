@@ -16,7 +16,7 @@ from pathlib import Path
 from narratr import blocks, doctor, icons, pipeline, stitch
 from narratr.errors import PipelineError
 from narratr.paths import RUNS, STORE
-from narratr.spec import load_spec, summarise, validate
+from narratr.spec import load_spec, summarise, validate, video_problems, warnings
 from narratr.state import Manifest, run_dir_name, safe_name
 
 
@@ -65,19 +65,21 @@ def cmd_icons(args: argparse.Namespace) -> int:
 
 def cmd_validate(args: argparse.Namespace) -> int:
 	spec = load_spec(args.scenes)
-	problems = validate(spec)
+	problems = validate(spec, base=args.scenes.resolve().parent)
 	if problems:
 		print(f"❌ Invalid ({len(problems)} problem(s)):")
 		for problem in problems:
 			print(f"  - {problem}")
 		return 1
 	print(f"✓ Valid: {summarise(spec)}")
+	for warning in warnings(spec):
+		print(f"⚠️  {warning}")
 	return 0
 
 
 def cmd_render(args: argparse.Namespace) -> int:
 	spec = load_spec(args.scenes)
-	problems = validate(spec)
+	problems = validate(spec, base=args.scenes.resolve().parent) + video_problems(spec)
 	if problems:
 		print("❌ Refusing to spend compute on an invalid spec:")
 		for problem in problems:
