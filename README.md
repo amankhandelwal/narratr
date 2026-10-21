@@ -197,6 +197,9 @@ Upload the `.pptx` to Google Drive and open it with Google Slides; the
 animations and notes survive the import. The `presentation` skill drives all
 of this from a document.
 
+Decks carry no title card: the [licence](LICENSE) exempts them from the
+branding that videos must open with.
+
 ## The title card
 
 Every video opens with a four-second card: the mark, the document's title, and
