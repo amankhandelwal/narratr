@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from PIL import Image
+from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 
 from narratr import images
@@ -25,6 +26,7 @@ from narratr.deck.draw import (
 	BODY_TOP,
 	BODY_W,
 	MARGIN,
+	arrow,
 	fit,
 	panel,
 	picture,
@@ -195,4 +197,124 @@ def image(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
 	return []
 
 
-LAYOUTS: dict[str, Layout] = {"prose": prose, "code": code, "image": image}
+def flow(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
+	"""Tiles left to right; the arrow into a step arrives with the step."""
+	theme = ctx.theme
+	steps = scene["steps"]
+	n = len(steps)
+	gap = 0.7
+	tile_w = min(2.4, (BODY_W - gap * (n - 1)) / n)
+	tile_h = 2.4
+	total = tile_w * n + gap * (n - 1)
+	left = MARGIN + (BODY_W - total) / 2
+	footer_h = 0.9 if scene.get("footer") else 0
+	top = BODY_TOP + (BODY_H - footer_h - tile_h) / 2
+	groups: list[list[int]] = []
+	for i, step in enumerate(steps):
+		x = left + i * (tile_w + gap)
+		group = slide.shapes.add_group_shape()
+		panel(group.shapes, x, top, tile_w, tile_h, fill=theme.panel, border=theme.accent(i))
+		icon = glyphs.png(step["icon"], theme.accent(i))
+		picture(group.shapes, icon, x + (tile_w - 0.9) / 2, top + 0.35, 0.9, 0.9)
+		text(
+			group.shapes,
+			x + 0.1,
+			top + 1.35,
+			tile_w - 0.2,
+			tile_h - 1.45,
+			step["label"],
+			size=24,
+			colour=theme.text,
+			font=theme.body_font,
+			bold=True,
+			align=PP_ALIGN.CENTER,
+			anchor=MSO_ANCHOR.TOP,
+		)
+		ids = [group.shape_id]
+		if i:
+			mid = top + tile_h / 2
+			line = arrow(slide.shapes, x - gap + 0.1, mid, x - 0.1, mid, colour=theme.line)
+			ids.append(line.shape_id)
+		groups.append(ids)
+	footer = scene.get("footer")
+	if footer:
+		y = BODY_TOP + BODY_H - footer_h
+		panel(slide.shapes, left, y, total, footer_h - 0.1, fill=theme.panel)
+		icon = glyphs.png(footer["icon"], theme.muted)
+		picture(slide.shapes, icon, left + 0.25, y + (footer_h - 0.1 - 0.5) / 2, 0.5, 0.5)
+		text(
+			slide.shapes,
+			left + 0.95,
+			y,
+			total - 1.2,
+			footer_h - 0.1,
+			footer["label"],
+			size=22,
+			colour=theme.muted,
+			font=theme.body_font,
+		)
+	return groups
+
+
+def cards(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
+	"""Columns side by side, each fading in whole."""
+	theme = ctx.theme
+	items = scene["cards"]
+	n = len(items)
+	gap = 0.4
+	w = (BODY_W - gap * (n - 1)) / n
+	groups: list[list[int]] = []
+	for i, card in enumerate(items):
+		x, y = MARGIN + i * (w + gap), BODY_TOP
+		group = slide.shapes.add_group_shape()
+		panel(group.shapes, x, y, w, BODY_H, fill=theme.panel)
+		panel(group.shapes, x, y, w, 0.08, fill=theme.accent(i), shape=MSO_SHAPE.RECTANGLE)
+		cursor = y + 0.4
+		if card.get("icon"):
+			picture(
+				group.shapes, glyphs.png(card["icon"], theme.accent(i)), x + 0.35, cursor, 0.7, 0.7
+			)
+			cursor += 0.95
+		text(
+			group.shapes,
+			x + 0.35,
+			cursor,
+			w - 0.7,
+			1.1,
+			card["title"],
+			size=26,
+			colour=theme.text,
+			font=theme.heading_font,
+			bold=True,
+			anchor=MSO_ANCHOR.TOP,
+		)
+		cursor += 1.15
+		if card.get("detail"):
+			text(
+				group.shapes,
+				x + 0.35,
+				cursor,
+				w - 0.7,
+				1.0,
+				card["detail"],
+				size=20,
+				colour=theme.muted,
+				font=theme.body_font,
+				anchor=MSO_ANCHOR.TOP,
+			)
+			cursor += 1.05
+		if card.get("image"):
+			data, iw, ih = image_bytes(card["image"], ctx.base)
+			room = y + BODY_H - 0.25 - cursor
+			picture(group.shapes, data, *fit(iw, ih, x + 0.25, cursor, w - 0.5, room))
+		groups.append([group.shape_id])
+	return groups
+
+
+LAYOUTS: dict[str, Layout] = {
+	"prose": prose,
+	"flow": flow,
+	"cards": cards,
+	"code": code,
+	"image": image,
+}

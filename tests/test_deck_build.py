@@ -95,3 +95,22 @@ def test_no_body_text_below_twenty_points(built):
 		for e in slide._element.iter():
 			if e.tag.endswith("}rPr") and e.get("sz"):
 				assert int(e.get("sz")) >= 2000, scene["id"]
+
+
+def test_cards_and_steps_fade_in_whole(built):
+	"""A card or step is one group shape, so it cannot appear half-drawn."""
+	from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+	spec, prs, _ = built
+	for scene, slide in zip(spec["scenes"], prs.slides, strict=True):
+		if scene["type"] not in {"flow", "cards"}:
+			continue
+		by_id = {s.shape_id: s for s in slide.shapes}
+		for group in animate.click_groups(slide._element):
+			assert by_id[group[0]].shape_type == MSO_SHAPE_TYPE.GROUP, scene["id"]
+
+
+def test_the_bundled_examples_exercise_flow_and_cards():
+	"""Otherwise the test above passes by checking nothing."""
+	kinds = {s["type"] for path in SPECS.values() for s in json.loads(path.read_text())["scenes"]}
+	assert {"flow", "cards"} <= kinds & set(LAYOUTS)
