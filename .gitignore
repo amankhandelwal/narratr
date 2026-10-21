@@ -9,6 +9,7 @@ __pycache__/
 
 # Run artifacts: large, reproducible, per-machine.
 runs/
+decks/
 .DS_Store
 store/
 
