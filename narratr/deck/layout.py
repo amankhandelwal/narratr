@@ -157,14 +157,13 @@ def code(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
 			(BODY_W - 2 * pad) * 72 / (longest * 0.62),
 		),
 	)
-	panel(slide.shapes, MARGIN, BODY_TOP, BODY_W, BODY_H, fill=theme.panel)
+	# The panel fits the listing: a one-line command in a full-height panel
+	# reads as a slide with something missing.
+	height = min(BODY_H, max(len(lines), 1) * size * 1.25 / 72 + 2 * pad)
+	top = BODY_TOP + (BODY_H - height) / 2
+	panel(slide.shapes, MARGIN, top, BODY_W, height, fill=theme.panel)
 	box = textbox(
-		slide.shapes,
-		MARGIN + pad,
-		BODY_TOP + pad,
-		BODY_W - 2 * pad,
-		BODY_H - 2 * pad,
-		MSO_ANCHOR.TOP,
+		slide.shapes, MARGIN + pad, top + pad, BODY_W - 2 * pad, height - 2 * pad, MSO_ANCHOR.TOP
 	)
 	frame = box.text_frame
 	for n, line in enumerate(lines):
@@ -263,11 +262,20 @@ def cards(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
 	n = len(items)
 	gap = 0.4
 	w = (BODY_W - gap * (n - 1)) / n
+	# Cards size to their content unless one carries an image, which takes
+	# whatever room is left. All cards share one height so the row lines up.
+	pictured = any(card.get("image") for card in items)
+	content = max(
+		0.4 + (0.95 if card.get("icon") else 0) + 1.15 + (1.05 if card.get("detail") else 0) + 0.3
+		for card in items
+	)
+	h = BODY_H if pictured else min(BODY_H, content)
+	y = BODY_TOP + (BODY_H - h) / 2
 	groups: list[list[int]] = []
 	for i, card in enumerate(items):
-		x, y = MARGIN + i * (w + gap), BODY_TOP
+		x = MARGIN + i * (w + gap)
 		group = slide.shapes.add_group_shape()
-		panel(group.shapes, x, y, w, BODY_H, fill=theme.panel)
+		panel(group.shapes, x, y, w, h, fill=theme.panel)
 		panel(group.shapes, x, y, w, 0.08, fill=theme.accent(i), shape=MSO_SHAPE.RECTANGLE)
 		cursor = y + 0.4
 		if card.get("icon"):
@@ -305,7 +313,7 @@ def cards(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
 			cursor += 1.05
 		if card.get("image"):
 			data, iw, ih = image_bytes(card["image"], ctx.base)
-			room = y + BODY_H - 0.25 - cursor
+			room = y + h - 0.25 - cursor
 			picture(group.shapes, data, *fit(iw, ih, x + 0.25, cursor, w - 0.5, room))
 		groups.append([group.shape_id])
 	return groups

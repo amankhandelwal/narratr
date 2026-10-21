@@ -112,3 +112,19 @@ def test_the_bundled_examples_exercise_flow_and_cards():
 	"""Otherwise the test above passes by checking nothing."""
 	kinds = {s["type"] for path in SPECS.values() for s in json.loads(path.read_text())["scenes"]}
 	assert {"flow", "cards"} <= kinds & set(LAYOUTS)
+
+
+def test_a_short_listing_gets_a_short_panel(tmp_path):
+	"""A one-line command in a full-height panel reads as a broken slide."""
+	from pptx.util import Emu
+
+	from narratr.deck.draw import BODY_H
+
+	path = SPECS["skill"]
+	spec = json.loads(path.read_text())
+	scene = next(s for s in spec["scenes"] if s["type"] == "code")
+	assert scene["code"].count("\n") == 0
+	deck, _ = build(spec, path.parent, tmp_path)
+	slide = Presentation(str(deck)).slides[spec["scenes"].index(scene)]
+	panel = next(s for s in slide.shapes if not s.has_text_frame or not s.text_frame.text)
+	assert Emu(panel.height).inches < BODY_H / 2
