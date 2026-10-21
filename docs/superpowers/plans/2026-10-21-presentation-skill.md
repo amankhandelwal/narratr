@@ -973,7 +973,7 @@ def click_groups(element: Any) -> list[list[int]]:
 				for effect in click.iter(qn("p:cTn"))
 				if effect.get("presetClass") == "entr"
 				for t in effect.iter(qn("p:spTgt"))
-			][:: 2]  # each effect targets its shape twice: set + animEffect
+			][::2]  # each effect targets its shape twice: set + animEffect
 		)
 	return groups
 ```
@@ -1327,7 +1327,14 @@ def prose(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
 		indent = 0.0
 		if bullet.get("icon"):
 			colour = theme.muted if struck else theme.accent(i)
-			picture(group.shapes, glyphs.png(bullet["icon"], colour), MARGIN, y + (row - 0.5) / 2, 0.5, 0.5)
+			picture(
+				group.shapes,
+				glyphs.png(bullet["icon"], colour),
+				MARGIN,
+				y + (row - 0.5) / 2,
+				0.5,
+				0.5,
+			)
 			indent = 0.75
 		text(
 			group.shapes,
@@ -1368,11 +1375,26 @@ def code(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
 	lines: list[list[list[str]]] = json.loads(result.stdout)
 	longest = max((sum(len(t[0]) for t in line) for line in lines), default=1) or 1
 	pad = 0.3
-	size = max(12.0, min(24.0, (BODY_H - 2 * pad) * 72 / (len(lines) * 1.25), (BODY_W - 2 * pad) * 72 / (longest * 0.62)))
+	size = max(
+		12.0,
+		min(
+			24.0,
+			(BODY_H - 2 * pad) * 72 / (len(lines) * 1.25),
+			(BODY_W - 2 * pad) * 72 / (longest * 0.62),
+		),
+	)
 	panel(slide.shapes, MARGIN, BODY_TOP, BODY_W, BODY_H, fill=theme.panel)
 	box = text(
-		slide.shapes, MARGIN + pad, BODY_TOP + pad, BODY_W - 2 * pad, BODY_H - 2 * pad, "",
-		size=size, colour=theme.text, font=theme.mono_font, anchor=MSO_ANCHOR.TOP,
+		slide.shapes,
+		MARGIN + pad,
+		BODY_TOP + pad,
+		BODY_W - 2 * pad,
+		BODY_H - 2 * pad,
+		"",
+		size=size,
+		colour=theme.text,
+		font=theme.mono_font,
+		anchor=MSO_ANCHOR.TOP,
 	)
 	frame = box.text_frame
 	for n, line in enumerate(lines):
@@ -1391,8 +1413,16 @@ def image(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
 	picture(slide.shapes, data, *fit(iw, ih, MARGIN, BODY_TOP, BODY_W, height))
 	if caption:
 		text(
-			slide.shapes, MARGIN, BODY_TOP + height + 0.1, BODY_W, 0.6, caption,
-			size=20, colour=ctx.theme.muted, font=ctx.theme.body_font, align=PP_ALIGN.CENTER,
+			slide.shapes,
+			MARGIN,
+			BODY_TOP + height + 0.1,
+			BODY_W,
+			0.6,
+			caption,
+			size=20,
+			colour=ctx.theme.muted,
+			font=ctx.theme.body_font,
+			align=PP_ALIGN.CENTER,
 		)
 	return []
 
@@ -1466,11 +1496,17 @@ def _heading(slide: Any, scene: dict[str, Any], theme: Theme, section: bool) -> 
 		return
 	if section:
 		title.left, title.top, title.width, title.height = (
-			Inches(MARGIN), Inches(2.5), Inches(SLIDE_W - 2 * MARGIN), Inches(2.5)
+			Inches(MARGIN),
+			Inches(2.5),
+			Inches(SLIDE_W - 2 * MARGIN),
+			Inches(2.5),
 		)
 	else:
 		title.left, title.top, title.width, title.height = (
-			Inches(MARGIN), Inches(0.4), Inches(SLIDE_W - 2 * MARGIN), Inches(1.0)
+			Inches(MARGIN),
+			Inches(0.4),
+			Inches(SLIDE_W - 2 * MARGIN),
+			Inches(1.0),
 		)
 	frame = title.text_frame
 	frame.text = heading
@@ -1609,25 +1645,57 @@ def flow(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
 		x = left + i * (tile_w + gap)
 		group = slide.shapes.add_group_shape()
 		panel(group.shapes, x, top, tile_w, tile_h, fill=theme.panel, border=theme.accent(i))
-		picture(group.shapes, glyphs.png(step["icon"], theme.accent(i)), x + (tile_w - 0.9) / 2, top + 0.35, 0.9, 0.9)
+		picture(
+			group.shapes,
+			glyphs.png(step["icon"], theme.accent(i)),
+			x + (tile_w - 0.9) / 2,
+			top + 0.35,
+			0.9,
+			0.9,
+		)
 		text(
-			group.shapes, x + 0.1, top + 1.35, tile_w - 0.2, tile_h - 1.45, step["label"],
-			size=24, colour=theme.text, font=theme.body_font, bold=True,
-			align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.TOP,
+			group.shapes,
+			x + 0.1,
+			top + 1.35,
+			tile_w - 0.2,
+			tile_h - 1.45,
+			step["label"],
+			size=24,
+			colour=theme.text,
+			font=theme.body_font,
+			bold=True,
+			align=PP_ALIGN.CENTER,
+			anchor=MSO_ANCHOR.TOP,
 		)
 		ids = [group.shape_id]
 		if i:
-			line = arrow(slide.shapes, x - gap + 0.1, top + tile_h / 2, x - 0.1, top + tile_h / 2, colour=theme.line)
+			line = arrow(
+				slide.shapes,
+				x - gap + 0.1,
+				top + tile_h / 2,
+				x - 0.1,
+				top + tile_h / 2,
+				colour=theme.line,
+			)
 			ids.append(line.shape_id)
 		groups.append(ids)
 	footer = scene.get("footer")
 	if footer:
 		y = BODY_TOP + BODY_H - footer_h
 		panel(slide.shapes, left, y, total, footer_h - 0.1, fill=theme.panel)
-		picture(slide.shapes, glyphs.png(footer["icon"], theme.muted), left + 0.25, y + 0.15, 0.5, 0.5)
+		picture(
+			slide.shapes, glyphs.png(footer["icon"], theme.muted), left + 0.25, y + 0.15, 0.5, 0.5
+		)
 		text(
-			slide.shapes, left + 0.95, y, total - 1.2, footer_h - 0.1, footer["label"],
-			size=22, colour=theme.muted, font=theme.body_font,
+			slide.shapes,
+			left + 0.95,
+			y,
+			total - 1.2,
+			footer_h - 0.1,
+			footer["label"],
+			size=22,
+			colour=theme.muted,
+			font=theme.body_font,
 		)
 	return groups
 
@@ -1648,22 +1716,43 @@ def cards(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
 		panel(group.shapes, x, y, w, 0.08, fill=theme.accent(i), shape=MSO_SHAPE.RECTANGLE)
 		cursor = y + 0.4
 		if card.get("icon"):
-			picture(group.shapes, glyphs.png(card["icon"], theme.accent(i)), x + 0.35, cursor, 0.7, 0.7)
+			picture(
+				group.shapes, glyphs.png(card["icon"], theme.accent(i)), x + 0.35, cursor, 0.7, 0.7
+			)
 			cursor += 0.95
 		text(
-			group.shapes, x + 0.35, cursor, w - 0.7, 1.1, card["title"],
-			size=26, colour=theme.text, font=theme.heading_font, bold=True, anchor=MSO_ANCHOR.TOP,
+			group.shapes,
+			x + 0.35,
+			cursor,
+			w - 0.7,
+			1.1,
+			card["title"],
+			size=26,
+			colour=theme.text,
+			font=theme.heading_font,
+			bold=True,
+			anchor=MSO_ANCHOR.TOP,
 		)
 		cursor += 1.15
 		if card.get("detail"):
 			text(
-				group.shapes, x + 0.35, cursor, w - 0.7, 1.0, card["detail"],
-				size=20, colour=theme.muted, font=theme.body_font, anchor=MSO_ANCHOR.TOP,
+				group.shapes,
+				x + 0.35,
+				cursor,
+				w - 0.7,
+				1.0,
+				card["detail"],
+				size=20,
+				colour=theme.muted,
+				font=theme.body_font,
+				anchor=MSO_ANCHOR.TOP,
 			)
 			cursor += 1.05
 		if card.get("image"):
 			data, iw, ih = image_bytes(card["image"], ctx.base)
-			picture(group.shapes, data, *fit(iw, ih, x + 0.25, cursor, w - 0.5, y + h - 0.25 - cursor))
+			picture(
+				group.shapes, data, *fit(iw, ih, x + 0.25, cursor, w - 0.5, y + h - 0.25 - cursor)
+			)
 		groups.append([group.shape_id])
 	return groups
 ```
@@ -1712,7 +1801,10 @@ from narratr.deck.build import build
 from narratr.paths import ROOT
 from narratr.spec import is_flowchart
 
-SPECS = [ROOT / "examples" / "brief.scenes.json", ROOT / "skills" / "narratr" / "example.scenes.json"]
+SPECS = [
+	ROOT / "examples" / "brief.scenes.json",
+	ROOT / "skills" / "narratr" / "example.scenes.json",
+]
 EDGE = re.compile(r"^\s*([A-Za-z0-9_]+)\s*-->(?:\|[^|]*\|)?\s*([A-Za-z0-9_]+)", re.M)
 
 
@@ -1813,7 +1905,14 @@ from pptx.util import Inches
 from narratr.deck import glyphs
 from narratr.deck.draw import BODY_H, BODY_TOP, BODY_W, MARGIN, arrowhead, fit, panel, picture, text
 from narratr.deck.layout import Ctx
-from narratr.render import ICON_FIELD, ICON_NODE, REMOTION, inline_mermaid_icons, mermaid_to_svg, run_remotion
+from narratr.render import (
+	ICON_FIELD,
+	ICON_NODE,
+	REMOTION,
+	inline_mermaid_icons,
+	mermaid_to_svg,
+	run_remotion,
+)
 from narratr.spec import is_flowchart
 
 SVG = "{http://www.w3.org/2000/svg}"
@@ -2017,7 +2116,21 @@ def _picture(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
 	png = ctx.tmp / f"{scene['id']}.png"
 	mmd.write_text(inline_mermaid_icons(scene["mermaid"]))
 	run_remotion(
-		["npx", "--no-install", "mmdc", "-i", str(mmd), "-o", str(png), "-b", "transparent", "-c", str(config), "-s", "3"],
+		[
+			"npx",
+			"--no-install",
+			"mmdc",
+			"-i",
+			str(mmd),
+			"-o",
+			str(png),
+			"-b",
+			"transparent",
+			"-c",
+			str(config),
+			"-s",
+			"3",
+		],
 		REMOTION,
 		"mermaid",
 	)
@@ -2046,9 +2159,27 @@ def draw(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
 
 	for cluster in layout.clusters:
 		x, y = at(cluster.x, cluster.y)
-		panel(slide.shapes, x, y, cluster.w * scale, cluster.h * scale, fill=theme.background, border=theme.line)
+		panel(
+			slide.shapes,
+			x,
+			y,
+			cluster.w * scale,
+			cluster.h * scale,
+			fill=theme.background,
+			border=theme.line,
+		)
 		if cluster.label:
-			text(slide.shapes, x + 0.1, y + 0.05, cluster.w * scale - 0.2, 0.4, cluster.label, size=max(12.0, font * 0.8), colour=theme.muted, font=theme.body_font)
+			text(
+				slide.shapes,
+				x + 0.1,
+				y + 0.05,
+				cluster.w * scale - 0.2,
+				0.4,
+				cluster.label,
+				size=max(12.0, font * 0.8),
+				colour=theme.muted,
+				font=theme.body_font,
+			)
 
 	beat = {n: i for i, step in enumerate(scene.get("revealSteps", [])) for n in step}
 	groups: list[list[int]] = [[] for _ in scene.get("revealSteps", [])]
@@ -2058,7 +2189,13 @@ def draw(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
 		w, h = node.w * scale, node.h * scale
 		border = theme.line if node.dim else theme.accent(index)
 		box = panel(
-			slide.shapes, x, y, w, h, fill=theme.panel, border=border,
+			slide.shapes,
+			x,
+			y,
+			w,
+			h,
+			fill=theme.panel,
+			border=border,
 			shape=MSO_SHAPE.DIAMOND if node.kind == "diamond" else MSO_SHAPE.ROUNDED_RECTANGLE,
 		)
 		box.name = f"node:{node.id}"
@@ -2068,12 +2205,21 @@ def draw(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
 		inset = 0.0
 		if icon:
 			size = min(h * 0.5, font / 72 * 1.2)
-			glyph = picture(slide.shapes, glyphs.png(icon, border), x + 0.12, y + (h - size) / 2, size, size)
+			glyph = picture(
+				slide.shapes, glyphs.png(icon, border), x + 0.12, y + (h - size) / 2, size, size
+			)
 			members.append(glyph.shape_id)
 			inset = size + 0.12
 		label = text(
-			slide.shapes, x + inset + 0.08, y, w - inset - 0.16, h, node.label,
-			size=font, colour=theme.muted if node.dim else theme.text, font=theme.body_font,
+			slide.shapes,
+			x + inset + 0.08,
+			y,
+			w - inset - 0.16,
+			h,
+			node.label,
+			size=font,
+			colour=theme.muted if node.dim else theme.text,
+			font=theme.body_font,
 			align=PP_ALIGN.CENTER,
 		)
 		members.append(label.shape_id)
@@ -2083,7 +2229,9 @@ def draw(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
 	for edge in layout.edges:
 		a, b = layout.nodes[edge.src], layout.nodes[edge.dst]
 		start, end = _sides(a, b)
-		line = slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, Inches(0), Inches(0), Inches(1), Inches(1))
+		line = slide.shapes.add_connector(
+			MSO_CONNECTOR.STRAIGHT, Inches(0), Inches(0), Inches(1), Inches(1)
+		)
 		line.begin_connect(shapes[edge.src], start)
 		line.end_connect(shapes[edge.dst], end)
 		arrowhead(line, theme.line)
@@ -2092,7 +2240,18 @@ def draw(slide: Any, scene: dict[str, Any], ctx: Ctx) -> list[list[int]]:
 		if edge.label and edge.label_box:
 			cx, cy, w, h = edge.label_box
 			x, y = at(cx - w / 2, cy - h / 2)
-			caption = text(slide.shapes, x, y, w * scale, h * scale, edge.label, size=max(12.0, font * 0.8), colour=theme.muted, font=theme.body_font, align=PP_ALIGN.CENTER)
+			caption = text(
+				slide.shapes,
+				x,
+				y,
+				w * scale,
+				h * scale,
+				edge.label,
+				size=max(12.0, font * 0.8),
+				colour=theme.muted,
+				font=theme.body_font,
+				align=PP_ALIGN.CENTER,
+			)
 			members.append(caption.shape_id)
 		when = max(beat.get(edge.src, -1), beat.get(edge.dst, -1))
 		if when >= 0:
