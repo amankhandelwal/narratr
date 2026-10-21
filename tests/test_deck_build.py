@@ -23,8 +23,6 @@ SPECS = {
 def built(request, tmp_path_factory):
 	path = SPECS[request.param]
 	spec = json.loads(path.read_text())
-	# Temporary until every shape has a layout.
-	spec["scenes"] = [s for s in spec["scenes"] if s["type"] in LAYOUTS]
 	deck, doc = build(spec, path.parent, tmp_path_factory.mktemp(request.param))
 	return spec, Presentation(str(deck)), doc.read_text()
 

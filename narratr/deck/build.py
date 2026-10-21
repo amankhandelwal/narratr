@@ -13,11 +13,14 @@ from pptx.opc.constants import RELATIONSHIP_TYPE as RT
 from pptx.oxml.ns import qn
 from pptx.util import Inches, Pt
 
-from narratr.deck import animate, script
+from narratr.deck import animate, diagram, script
 from narratr.deck.draw import MARGIN, SLIDE_H, SLIDE_W
 from narratr.deck.layout import LAYOUTS, Ctx
 from narratr.deck.theme import Theme, resolve, rgb
 from narratr.errors import PipelineError
+
+# Registered here rather than in layout.py, which diagram.py imports from.
+LAYOUTS["diagram"] = diagram.draw
 
 # python-pptx's default template: 0 is "Title Slide", 5 is "Title Only".
 SECTION_LAYOUT = 0
