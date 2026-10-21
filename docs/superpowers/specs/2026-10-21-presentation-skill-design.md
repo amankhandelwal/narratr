@@ -125,7 +125,13 @@ Reused as-is: `narratr/spec.py` validation, `narratr/icons.py` lookup,
 | `image` | Image fit to the body area, aspect preserved, optional caption | none |
 
 Non-flowchart Mermaid (sequence, class, etc.) falls back to a single PNG
-picture of the diagram that fades in on one click; `validate` warns.
+picture of the diagram, shown whole with **no clicks and no `▶️` markers** —
+its per-step cues cannot be honoured by one picture, and a marker with no
+animation behind it would mislead the presenter. `validate` warns.
+
+Edges are **straight** connectors glued to node sides (top/left/bottom/right,
+whichever faces the other node), with an arrowhead. Straight glued connectors
+are what the Slides spike verified.
 
 **Icons:** Lucide SVG recoloured to the element's accent (`currentColor` →
 hex) and rasterised to PNG at 4× display size with `resvg-py`. Slides drops
@@ -194,9 +200,9 @@ Each test asserts a property over every slide, not one example:
 
 ## Risks
 
-- **Connector gluing in Slides.** The spike showed a glued straight connector
-  survives conversion; elbow connectors routed around nodes did not get
-  tested. If they convert badly, edges are straight connectors only.
+- **Straight edges cross nodes** in dense diagrams, where Mermaid's curves
+  routed around them. Accepted for v1: elbow connectors were not verified in
+  Slides, and the presenter can re-route an edge by hand.
 - **Mermaid SVG structure.** `diagram.py` reads node positions from mmdc's
   output; a mermaid-cli upgrade can change it. The diagram test over the
   bundled examples is the guard, and `mermaid-cli` is already pinned through
