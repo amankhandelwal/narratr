@@ -39,19 +39,33 @@ jobs:
       # pack, which is a real dependency of the gate rather than a renderer
       # detail -- so the spec tests need it too. Without it 14 tests fail on
       # "icons: pack not installed" and CI is testing a different thing from
-      # the developer. Chromium is skipped: mermaid-cli pulls ~150 MB of it and
-      # nothing in the Python suite shells out to mmdc.
+      # the developer.
+      #
+      # Chromium is installed too. Chromium used to be skipped because nothing in
+      # the Python suite shelled out to mmdc, but the deck tests do: a deck lays
+      # its flowcharts out with Mermaid and rebuilds them as native shapes.
+      # Puppeteer keeps its ~150 MB download outside node_modules, so it is
+      # cached separately.
       - uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: npm
           cache-dependency-path: render/remotion/package-lock.json
 
-      - name: Install the icon pack
+      - name: Cache Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/puppeteer
+          key: puppeteer-${{ runner.os }}-${{ hashFiles('render/remotion/package-lock.json') }}
+
+      - name: Install the renderer's node packages
         run: npm ci
         working-directory: render/remotion
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: "true"
+
+      # Ubuntu 24.04 restricts unprivileged user namespaces, which Chrome's
+      # sandbox needs; without this mmdc dies launching the browser.
+      - name: Let Chrome sandbox itself
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
       - name: Lint
         run: uv run ruff check .
