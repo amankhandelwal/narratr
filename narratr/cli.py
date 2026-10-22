@@ -15,8 +15,8 @@ from pathlib import Path
 
 from narratr import blocks, doctor, icons, pipeline, stitch
 from narratr.errors import PipelineError
-from narratr.paths import RUNS, STORE
-from narratr.spec import load_spec, summarise, validate
+from narratr.paths import DECKS, RUNS, STORE
+from narratr.spec import load_spec, summarise, validate, video_problems, warnings
 from narratr.state import Manifest, run_dir_name, safe_name
 
 
@@ -65,19 +65,21 @@ def cmd_icons(args: argparse.Namespace) -> int:
 
 def cmd_validate(args: argparse.Namespace) -> int:
 	spec = load_spec(args.scenes)
-	problems = validate(spec)
+	problems = validate(spec, base=args.scenes.resolve().parent)
 	if problems:
 		print(f"❌ Invalid ({len(problems)} problem(s)):")
 		for problem in problems:
 			print(f"  - {problem}")
 		return 1
 	print(f"✓ Valid: {summarise(spec)}")
+	for warning in warnings(spec):
+		print(f"⚠️  {warning}")
 	return 0
 
 
 def cmd_render(args: argparse.Namespace) -> int:
 	spec = load_spec(args.scenes)
-	problems = validate(spec)
+	problems = validate(spec, base=args.scenes.resolve().parent) + video_problems(spec)
 	if problems:
 		print("❌ Refusing to spend compute on an invalid spec:")
 		for problem in problems:
@@ -140,6 +142,27 @@ def cmd_render(args: argparse.Namespace) -> int:
 			if playable:
 				print(f"→ {playable}")
 		print("  Run without --only to stitch the finished video.")
+	return 0
+
+
+def cmd_deck(args: argparse.Namespace) -> int:
+	"""Build a presentation. Seconds, not hours: no detach, no manifest, no cache."""
+	from narratr.deck.build import build  # rendering video never needs python-pptx
+
+	spec = load_spec(args.scenes)
+	base = args.scenes.resolve().parent
+	problems = validate(spec, base=base)
+	if problems:
+		print("❌ Refusing to build an invalid spec:")
+		for problem in problems:
+			print(f"  - {problem}")
+		return 1
+	for warning in warnings(spec):
+		print(f"⚠️  {warning}")
+	out = args.out or DECKS / safe_name(spec["source"]["title"])
+	deck, doc = build(spec, base, out)
+	print(f"✓ {deck}")
+	print(f"✓ {doc}")
 	return 0
 
 
@@ -308,6 +331,10 @@ def build_parser() -> argparse.ArgumentParser:
 		help="render just this scene, repeatable; skips stitching",
 	)
 
+	deck_cmd = sub.add_parser("deck", help="build a .pptx deck and a speaker script")
+	deck_cmd.add_argument("scenes", type=Path)
+	deck_cmd.add_argument("--out", type=Path, help="output directory; default decks/<title>")
+
 	gc_cmd = sub.add_parser("gc", help="remove store artifacts no run refers to")
 	gc_cmd.add_argument(
 		"--delete", action="store_true", help="actually remove them; otherwise just reports"
@@ -327,6 +354,7 @@ def main() -> int:
 		"icons": cmd_icons,
 		"validate": cmd_validate,
 		"render": cmd_render,
+		"deck": cmd_deck,
 		"status": cmd_status,
 		"gc": cmd_gc,
 	}

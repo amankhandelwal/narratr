@@ -1,14 +1,14 @@
 narratr License
-Version 1.0
+Version 1.1
 
 Copyright (c) 2026 Aman Khandelwal (https://github.com/amankhandelwal/narratr)
 
-narratr turns a document into a narrated video. It is two things together: a
-program that narrates, renders and assembles the video, and a Claude skill
-(the `skill/` directory) that writes the script the program renders. Both are
-the original work of the Licensor, released so that people can use them
-freely. This license keeps it that way: free to use, free to share, and always
-credited.
+narratr turns a document into a narrated video or a slide deck. It is two
+things together: a program that narrates, renders and assembles the video or
+builds the deck, and Claude skills (the `skills/` directory) that write the
+script the program renders. Both are the original work of the Licensor,
+released so that people can use them freely. This license keeps it that way:
+free to use, free to share, and always credited.
 
 This is a source-available license. It is modelled on the permissive shape of
 the MIT and Apache 2.0 licenses, but it adds conditions those licenses do not
@@ -20,23 +20,29 @@ have (Sections 3 to 6). It is not an OSI-approved open source license.
 "Licensor" means Aman Khandelwal, the copyright holder.
 
 "Software" means everything in this repository -- source code, the Claude
-skill, prompts, schemas, templates, documentation, configuration and assets --
+skills, prompts, schemas, templates, documentation, configuration and assets --
 except the Third-Party Components listed in Section 8.
 
 "Derivative Work" means any work that is based on, or incorporates, all or any
 part of the Software, whether modified or not. A fork, a port to another
-language, a copy of the skill or its prompts, and a program that reuses the
+language, a copy of a skill or its prompts, and a program that reuses the
 Software's code are all Derivative Works.
 
 "Output" means any video, audio, image, caption file or other media produced,
 in whole or in part, by the Software or by a Derivative Work.
 
-"Intro" means the title card that opens every Output: the narratr mark
-(`render/remotion/public/narratr-mark.png` and `assets/Narratr.png`), the
-narratr name, the intro music (`assets/intro.mp3`), and their layout, timing
-and animation as implemented by the Software (`render/remotion/src/Intro.tsx`
-and `narratr/intro.py`). The document title shown on the card is supplied by
-the user and is not part of the Intro.
+"Deck" means a slide presentation produced, in whole or in part, by the
+Software or by a Derivative Work -- such as the `.pptx` file and speaker
+script written by `narratr deck` -- together with every image, diagram and
+text it contains, and any copy of it imported into, converted by or edited in
+other presentation software.
+
+"Intro" means the title card that opens every Output other than a Deck: the
+narratr mark (`render/remotion/public/narratr-mark.png` and
+`assets/Narratr.png`), the narratr name, the intro music (`assets/intro.mp3`),
+and their layout, timing and animation as implemented by the Software
+(`render/remotion/src/Intro.tsx` and `narratr/intro.py`). The document title
+shown on the card is supplied by the user and is not part of the Intro.
 
 "Commercial Distribution" means selling, renting, licensing or sublicensing
 the Software or a Derivative Work, or charging any fee, subscription, credit
@@ -69,6 +75,9 @@ distribute Output for any purpose, personal or commercial.
     into other material) is permitted, provided the Intro stays intact at the
     start of the narratr-produced portion.
 
+(e) This Section does not apply to a Deck. A Deck need not carry the Intro,
+    the narratr mark or the narratr name.
+
 
 4. Attribution and credit
 
@@ -81,10 +90,10 @@ distribute Output for any purpose, personal or commercial.
     based on narratr, created by Aman Khandelwal, and link to
     https://github.com/amankhandelwal/narratr.
 
-(c) You may not present the Software, the skill, its method of turning a
-    document into a narrated video, or any Derivative Work as your own
-    original creation, nor imply that you, rather than the Licensor, created
-    them.
+(c) You may not present the Software, the skills, its method of turning a
+    document into a narrated video or a slide deck, or any Derivative Work as
+    your own original creation, nor imply that you, rather than the Licensor,
+    created them.
 
 (d) You may not use the narratr name or mark to imply that the Licensor
     endorses you, your Derivative Work or your Output, except as required by
@@ -101,8 +110,8 @@ distribute Output for any purpose, personal or commercial.
     it get the same freedoms and the same obligations.
 
 (c) This Section restricts charging for the software. It does not restrict
-    Output: videos made with narratr may be published, monetised and used
-    commercially, provided they carry the Intro under Section 3.
+    Output: videos and Decks made with narratr may be published, monetised and
+    used commercially, provided videos carry the Intro under Section 3.
 
 
 6. Termination

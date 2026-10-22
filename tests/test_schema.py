@@ -25,7 +25,7 @@ from narratr.spec import validate
 EXAMPLES = [
 	ROOT / "examples" / "brief.scenes.json",
 	ROOT / "examples" / "code.scenes.json",
-	ROOT / "skill" / "example.scenes.json",
+	ROOT / "skills" / "narratr" / "example.scenes.json",
 ]
 
 

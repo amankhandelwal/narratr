@@ -25,6 +25,10 @@ dependencies = [
     "torchaudio~=2.6.0",
     # scenes.json is a contract, so validate it rather than trust it
     "jsonschema>=4.26.0",
+    # Decks: python-pptx writes the .pptx, resvg rasterises icons because
+    # Google Slides drops SVG on import
+    "python-pptx>=1.0.2",
+    "resvg-py>=0.5.0",
 ]
 
 [project.scripts]

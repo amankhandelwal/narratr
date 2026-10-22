@@ -8,12 +8,13 @@ that reads well but silently dropped a third of the document.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 import jsonschema
 
-from narratr import cues, icons
+from narratr import cues, icons, images
 from narratr.errors import PipelineError
 from narratr.paths import SCHEMA
 
@@ -42,44 +43,53 @@ REQUIRED_BY_TYPE: dict[str, tuple[str, ...]] = {
 	"code": ("code",),
 	"flow": ("steps",),
 	"cards": ("cards",),
+	"image": ("image",),
 }
 
 # A field that belongs to another shape is dead weight: it never reaches the
 # renderer, but it is in VISUAL_FIELDS, so it still moves the video key and
 # re-renders a scene that cannot look any different.
-OWNED_BY_TYPE = {
-	"mermaid": "diagram",
-	"revealSteps": "diagram",
-	"code": "code",
-	"lang": "code",
-	"steps": "flow",
-	"footer": "flow",
-	"cards": "cards",
-	"bullets": "prose",
+OWNED_BY_TYPE: dict[str, tuple[str, ...]] = {
+	"mermaid": ("diagram",),
+	"revealSteps": ("diagram",),
+	"code": ("code",),
+	"lang": ("code",),
+	"steps": ("flow",),
+	"footer": ("flow",),
+	"cards": ("cards",),
+	"bullets": ("prose",),
+	# A picture beside the bullets, or the whole slide.
+	"image": ("prose", "image"),
+	"caption": ("image",),
 }
+
+KINDS = {kind for owners in OWNED_BY_TYPE.values() for kind in owners}
 
 
 def _shape_problems(scenes: list[dict[str, Any]]) -> list[str]:
 	found: list[str] = []
 	for scene in scenes:
 		kind = scene.get("type")
-		if not isinstance(kind, str) or kind not in set(OWNED_BY_TYPE.values()):
+		if not isinstance(kind, str) or kind not in KINDS:
 			continue  # the schema's enum already rejected it
 		sid = scene.get("id", "?")
 		for field in REQUIRED_BY_TYPE.get(kind, ()):
 			if not scene.get(field):
 				found.append(f"scenes: '{sid}' is type '{kind}' but has no '{field}'")
-		for field, owner in OWNED_BY_TYPE.items():
-			if owner != kind and scene.get(field):
+		for field, owners in OWNED_BY_TYPE.items():
+			if kind not in owners and scene.get(field):
 				found.append(
 					f"scenes: '{sid}' is type '{kind}' and carries '{field}', "
-					f"which only '{owner}' renders"
+					f"which only {' or '.join(repr(o) for o in owners)} renders"
 				)
 	return found
 
 
-def validate(spec: dict[str, Any]) -> list[str]:
-	"""Schema plus the coverage gate. Returns a list of problems, empty if clean."""
+def validate(spec: dict[str, Any], base: Path | None = None) -> list[str]:
+	"""Schema plus the coverage gate. Returns a list of problems, empty if clean.
+
+	`base` is the directory image paths are relative to: the spec file's own.
+	"""
 	problems: list[str] = []
 
 	try:
@@ -127,6 +137,10 @@ def validate(spec: dict[str, Any]) -> list[str]:
 	# discovered on playback. Same reason the coverage gate exists.
 	problems += icons.problems(spec)
 
+	# Images are the user's files rather than Claude's, but a missing one is
+	# just as cheap to catch here and just as visible once built.
+	problems += images.problems(spec, base or Path.cwd())
+
 	# And the same reason again: a reveal with no cue plays at a guessed time
 	# rather than on the words that introduce it, which is only visible once
 	# there is a video to watch.
@@ -135,6 +149,37 @@ def validate(spec: dict[str, Any]) -> list[str]:
 			problems += cues.problems(scene)
 
 	return problems
+
+
+FRONTMATTER = re.compile(r"\A\s*---\n.*?\n---\n", re.DOTALL)
+
+
+def is_flowchart(source: str) -> bool:
+	"""Whether a deck can rebuild this diagram as native shapes."""
+	for line in FRONTMATTER.sub("", source).splitlines():
+		stripped = line.strip()
+		if stripped and not stripped.startswith("%%"):
+			return stripped.split()[0] in {"flowchart", "graph"}
+	return False
+
+
+def warnings(spec: dict[str, Any]) -> list[str]:
+	"""Things that build, but not the way the author may expect."""
+	return [
+		f"diagram: '{s['id']}' is not a flowchart -- the deck shows it as one picture, "
+		"with no clicks"
+		for s in spec.get("scenes", [])
+		if s.get("type") == "diagram" and not is_flowchart(s.get("mermaid", ""))
+	]
+
+
+def video_problems(spec: dict[str, Any]) -> list[str]:
+	"""What the video renderer cannot draw yet. Images are decks-only for now."""
+	return [
+		f"render: scene '{s['id']}' uses images, which only 'narratr deck' renders"
+		for s in spec.get("scenes", [])
+		if s.get("type") == "image" or images.paths_in(s)
+	]
 
 
 def summarise(spec: dict[str, Any]) -> str:

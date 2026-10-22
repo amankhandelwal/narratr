@@ -61,7 +61,7 @@ Every bullet, step, card and diagram reveal also carries a `cue`: a verbatim
 phrase from that scene's narration, which is when it appears on screen. Write
 the narration first and cue against it, never the other way round.
 
-**Before writing any scene, read `presentation.md` beside this file.** It
+**Before writing any scene, read `shapes.md` beside this file.** It
 carries the five scene shapes and how to choose between them, the cue and icon
 rules, and the limits the schema enforces. `example.scenes.json`, also beside this
 file, is a complete spec that uses every shape — copy its structure.

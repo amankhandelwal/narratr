@@ -45,7 +45,7 @@ doctor:
 
 # Validate every spec we ship. A broken example is a broken tutorial.
 validate:
-	@for spec in examples/*.json skill/example.scenes.json; do \
+	@for spec in examples/*.json skills/*/example.scenes.json; do \
 		echo "$$spec"; \
 		uv run narratr validate "$$spec" || exit 1; \
 	done

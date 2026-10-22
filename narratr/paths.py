@@ -11,5 +11,7 @@ RUNS = ROOT / "runs"
 # edited scene reuses everything it did not change -- across runs, not just
 # within one.
 STORE = ROOT / "store"
+# `narratr deck` output, one directory per deck title.
+DECKS = ROOT / "decks"
 SCHEMA = ROOT / "schemas" / "scenes.schema.json"
 VOICES = ROOT / "assets" / "voices"

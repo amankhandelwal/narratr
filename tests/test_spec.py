@@ -129,3 +129,39 @@ def test_renderer_source_is_part_of_the_video_key(monkeypatch, tmp_path):
 	state.renderer_digest.cache_clear()
 
 	assert before != after
+
+
+def test_theme_colours_must_be_hex():
+	spec = load()
+	spec["theme"] = {"background": "navy"}
+	assert any("theme" in p for p in validate(spec))
+
+
+def test_a_full_theme_is_accepted():
+	spec = load()
+	spec["theme"] = {
+		"background": "#ffffff",
+		"text": "#111827",
+		"muted": "#6b7280",
+		"accents": ["#2563eb", "#db2777", "#059669", "#d97706"],
+		"headingFont": "Poppins",
+		"bodyFont": "Inter",
+	}
+	assert validate(spec) == []
+
+
+def test_non_flowchart_diagrams_warn_but_pass():
+	from narratr.spec import warnings
+
+	spec = load()
+	diagram = next(s for s in spec["scenes"] if s["type"] == "diagram")
+	diagram["mermaid"] = "sequenceDiagram\n    A->>B: hi"
+	assert any(diagram["id"] in w for w in warnings(spec))
+
+
+def test_is_flowchart_skips_frontmatter_and_comments():
+	from narratr.spec import is_flowchart
+
+	assert is_flowchart("---\nconfig:\n  x: 1\n---\n%% note\nflowchart LR\n A-->B")
+	assert is_flowchart("graph TD\n A-->B")
+	assert not is_flowchart("sequenceDiagram\n A->>B: hi")
